@@ -1,0 +1,14 @@
+# Cocos project (generated)
+library/
+temp/
+local/
+build/
+native/
+profiles/
+# Node
+node_modules/
+*.log
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
