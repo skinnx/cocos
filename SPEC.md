@@ -118,6 +118,7 @@ Mọi màn hình chính (HUD ở PEACE và màn Hold) phải hiện **"Mục ti�
 Không hệ thống nào ngoài danh sách trên được hiện ra trước thời điểm của nó (nút bị ẩn, không phải bị khóa mờ).
 
 ---
+
 ## 3. Điều khiển và camera
 
 - **Màn dọc**, design resolution 720×1280, fit width, tôn trọng safe-area (tai thỏ, thanh home). Máy cao hơn 16:9 thấy thêm thế giới theo chiều dọc.
@@ -181,6 +182,7 @@ Không hệ thống nào ngoài danh sách trên được hiện ra trước th�
 Bản đồ riêng 40×40 sinh từ `seed = ngày + chỉ số đảo`, không lưu lại sau chuyến đi. Luật ở §11.6.
 
 ---
+
 ## 5. Ánh sáng (cơ chế chữ ký)
 
 - **Nguồn sáng tĩnh:** Hearth (bán kính 7 → 16 ô theo 10 bậc, §11.1), Brazier (4 ô; nâng cấp 5.5 ô; 7 ô với nghiên cứu), Pháo Sáng của Sable (tạm thời). **Nguồn sáng động:** đèn của trưởng nhóm (3 ô).
@@ -285,6 +287,7 @@ Thay đổi so với §6.3 trong Hold bền vững:
 - Giới hạn công trình: 150 → **400** (tường tính 1/4). Lõi vẫn phải giữ ngân sách hiệu năng ở §13.3.
 
 ---
+
 ## 7. Chiến đấu
 
 ### 7.1 Hero (6 nhân vật đầu; thêm 4 ở §7.6)
@@ -392,6 +395,7 @@ Vùng 1–2 (Mossback, Briarqueen, Kẻ Đào, Kẻ Rít) là MUST. Vùng 3–5 
 **Nhà Vô Địch Gloom** của đêm Trăng Máu: xem §8.4.
 
 ---
+
 ## 8. Đêm: Hiểm họa, Hải đăng, Tuần trăng
 
 ### 8.1 Nguyên tắc
@@ -446,6 +450,7 @@ Hiện ở DUSK và mở lại được: icon loại quái × số lượng theo
 Mở đầu đêm: tiếng tù và, băng rôn "ĐÊM n · pha trăng", mép màn hình phía có khe nháy tím.
 
 ---
+
 ## 9. Art bible và pipeline
 
 > Tham chiếu bắt buộc: `docs/art/style-anchor.png` (sinh bởi `node tools/art/anchors.mjs`). **Đó là mức chất lượng tối thiểu.** Mọi sprite mới phải trông cùng một bộ với các anchor. Mở ảnh đó ra xem trước khi vẽ bất cứ thứ gì.
@@ -529,6 +534,7 @@ Cùng pipeline, cùng lint, cùng thang tự chấm. Thêm vào `tools/art/manif
 - **Ưu tiên:** phần MUST ở §11 vẽ trước; mọi thứ gắn với Vùng 3–5, module và trang trí là SHOULD.
 
 ---
+
 ## 10. UI/UX
 
 ### 10.1 Màn hình
@@ -561,6 +567,7 @@ Tốt/xấu luôn kèm hình dạng hoặc icon ngoài màu sắc (ô hợp lệ
 - Mọi con số tiến trình dùng chữ rút gọn (1.2k, 34k). Mọi nút có điều kiện chưa đạt hiện rõ điều kiện, không chỉ mờ đi.
 
 ---
+
 ## 11. Tiến trình dài hạn
 
 Tám đơn vị tiền/nguyên liệu. HUD chỉ hiện 4 thứ đầu; phần còn lại nằm trong bảng Kho.
@@ -726,6 +733,7 @@ Nhánh và nút 1–5 là MUST; nút 6–8 là SHOULD.
 Sau khi phong ấn Vùng 5, người chơi có thể **lập Hold thứ hai** trên một hòn đảo kiểu khác (băng giá hoặc sa mạc: đổi biome chủ đạo và thứ tự Vùng). Mang theo: hero, trang bị, Sách Gloom, trang trí, và 1 **đặc quyền Di sản** tự chọn (ví dụ: bắt đầu ở Hearth bậc 3, hoặc +1 ô Phước lành). Hold cũ được giữ nguyên; chuyển qua lại ở màn Title. Tối đa 3 Hold.
 
 ---
+
 ## 12. Âm thanh (sinh bằng code, không tải file ngoài)
 
 `tools/audio/synth.mjs` sinh WAV mono 22 kHz 16-bit vào `assets/resources/audio/` bằng bộ tổng hợp kiểu sfxr (sóng vuông/tam giác/nhiễu + envelope + trượt tần số):
@@ -860,6 +868,7 @@ Phải **thay đổi** trong lõi:
 `api.ts` mở rộng theo kiểu cộng thêm: lệnh mới (`ringBell`, `setBeacon`, `garrison`, `dispatch`, `collectAway`, `assignWorkers`, `research`, `craft`, `equip`, `starUp`, `pickSkill`, `upgradeHearth`, `rebuild`, `rebuildAll`, `relocate`, `startExpedition`, `extract`, `claimBounty`, `trade`, `resume`, `tick`), trường state mới cho từng hệ thống. Viễn chinh là một `World` thứ hai chạy cùng lõi với bộ luật rút gọn (không xây, không ánh sáng tĩnh).
 
 ---
+
 ## 14. Lộ trình v2 (di trú từ codebase v1; làm tuần tự; mỗi mốc kết thúc bằng commit + cập nhật `docs/PROGRESS.md`)
 
 | Mốc | Nội dung | Điều kiện qua mốc |
