@@ -128,6 +128,7 @@ export class App {
   }
 
   cmd(c: Command) { this.game?.cmd(c); }
+  alpha() { return this.autoplay.on ? this.autoplay.alpha() : this.game ? this.game.alpha() : 0; }
 
   // ── layout ──────────────────────────────────────────────────────────────
   resize() {
@@ -181,10 +182,10 @@ export class App {
     }
     if (this.screen !== 'game' || !this.game) return;
     const g = this.game, s = g.state;
-    if (this.autoplay.on) this.autoplay.tick(dt);
-    else this.updateMove();
+    if (!this.autoplay.on) this.updateMove();
     if (!this.paused) {
       if (this.fx.hitStop > 0) this.fx.hitStop -= dt;
+      else if (this.autoplay.on) this.autoplay.tick(dt);
       else g.update(dt * this.speed);
     }
     for (const ev of g.drainEvents()) this.onEvent(ev);
@@ -242,7 +243,7 @@ export class App {
     if ((s.phase === 'dusk' || !leader) && hearth) { tx = (hearth.x + hearth.w / 2) * T; ty = (hearth.y + hearth.h / 2) * T; }
     else if (leader) {
       const la = lookAhead(this.moveDir);
-      const a = this.game!.alpha();
+      const a = this.alpha();
       tx = (leader.px + (leader.x - leader.px) * a + la.x) * T; ty = (leader.py + (leader.y - leader.py) * a + la.y) * T;
     } else return;
     const k = smoothFactor(dt);
@@ -392,7 +393,7 @@ export class App {
     const [shx, shy] = this.fx.shakeOffset(this.time);
     const base = this.camRect();
     const cam: Cam = { ...base, x: base.x + shx, y: base.y + shy };
-    const a = game.alpha();
+    const a = game === this.game ? this.alpha() : game.alpha();
     this.world.drawGround(g, s, cam, this.time);
     this.world.drawFloor(g, s, cam, this.time);
     this.world.drawZones(g, s, cam, this.time);

@@ -7,15 +7,12 @@ import { startDay, startDusk, startNight, startDawn, defeat, victory } from '../
 import { spawnEnemy } from '../../../assets/scripts/core/sim/Enemies';
 import { riftPois } from '../../../assets/scripts/core/sim/Spawner';
 import { BALANCE } from '../../../assets/scripts/core/data/balance';
-// BOT_IMPORT_PENDING
-const BaselineBot = class { act(_g: Game) { /* pending core bot */ } };
+import { AutoplayBot } from '../../../assets/scripts/core/bots';
+import { DT } from '../../../assets/scripts/core/data/balance';
 
-export interface PreviewBot { tick(): void }
-
-export function makeBot(g: Game): PreviewBot {
-  const bot = new BaselineBot();
-  return { tick: () => bot.act(g) };
-}
+export { DT };
+/** The core's AutoplayBot (BaselineBot + extras): called once before every fixed step, issues Commands only. */
+export const autoplayBot = AutoplayBot;
 
 function clearNight(g: Game) {
   const w = worldOf(g), s = w.s;
