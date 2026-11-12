@@ -1,0 +1,8 @@
+{
+  "compilerOptions": {
+    "target": "ES2020", "module": "ESNext", "moduleResolution": "Bundler",
+    "strict": true, "noImplicitOverride": true, "skipLibCheck": true,
+    "lib": ["ES2020"], "types": [], "isolatedModules": true
+  },
+  "include": ["assets/scripts/core/**/*.ts"]
+}

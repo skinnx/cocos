@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+    "target": "ES2020", "module": "ESNext", "moduleResolution": "Bundler",
+    "strict": true, "skipLibCheck": true, "experimentalDecorators": true,
+    "useDefineForClassFields": false, "lib": ["ES2020", "DOM"], "types": [],
+    "paths": { "cc": ["./types/cc-shim.d.ts"], "cc/env": ["./types/cc-env-shim.d.ts"] }
+  },
+  "include": ["assets/scripts/**/*.ts", "types/*.d.ts"]
+}
