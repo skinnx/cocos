@@ -17,7 +17,7 @@ export function costText(c: Resources): string {
   if (c.wood) parts.push(`${c.wood}w`);
   if (c.stone) parts.push(`${c.stone}s`);
   if (c.gold) parts.push(`${c.gold}g`);
-  return parts.join(' ') || '0';
+  return parts.join(parts.length > 2 ? '' : ' ') || '0';
 }
 export function affordable(have: Resources, c: Resources): boolean {
   return have.wood >= c.wood && have.stone >= c.stone && have.gold >= c.gold;
@@ -69,7 +69,7 @@ export class BuildDrawer {
       b.onTap = () => { ctx.sfx('ui_click'); this.setTab(t); };
       this.tabs.push(b);
     });
-    for (let i = 0; i < 5; i++) this.cards.push(new Card(this.node, 56, 80));
+    for (let i = 0; i < 5; i++) this.cards.push(new Card(this.node, 50, 80));
     this.undo = new Button(this.node, { icon: 'icon_undo', z: 41 });
     this.undo.onTap = () => { ctx.sfx('ui_click'); ctx.cmd({ t: 'undo' }); };
     this.done = new Button(this.node, { icon: 'icon_tick', z: 41 });
@@ -109,8 +109,8 @@ export class BuildDrawer {
     this.panel.size(W + 8, this.height).pos(-4, -2);
     const tw = Math.floor((W - 8) / 4);
     this.tabs.forEach((t, i) => t.layout(4 + i * tw, b + 88, tw - 2, 18));
-    const cw = 56, gap = 3;
-    this.perPage = Math.max(1, Math.floor((W - 24) / (cw + gap)));
+    const cw = 50, gap = 2;
+    this.perPage = Math.max(1, Math.floor((W - 16) / (cw + gap)));
     const x0 = Math.round((W - (this.perPage * (cw + gap) - gap)) / 2);
     this.cards.forEach((c, i) => { c.x = x0 + i * (cw + gap); c.y = b + 4; c.node.setPosition(c.x, c.y, 0); });
     Object.assign(this.rowHit, { x: 0, y: b + 2, w: W, h: 84 });
@@ -159,7 +159,7 @@ export class BuildDrawer {
       const can = !!s && affordable(s.res, cost);
       c.bg.setFrame(this.selected === id ? 'ui_card_legendary' : locked ? 'ui_card_common' : can ? 'ui_card_rare' : 'ui_card_common');
       c.img.set(previewSprite(id)).pos(Math.round(c.w / 2), 13).alpha(locked ? 90 : 255);
-      c.name.set(tr(`bld.${id}.name`)).pos(Math.round(c.w / 2), c.h - 3);
+      c.name.set(tr(`bld.${id}.name`)).pos(Math.round(c.w / 2), c.h - 6);
       c.cost.set(locked ? `${tr('ui.locked')}` : costText(cost), can || locked ? PAL.w : PAL.o).pos(Math.round(c.w / 2), 3);
       c.lock.show(locked).pos(Math.round(c.w / 2), 34);
     }

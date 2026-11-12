@@ -72,11 +72,13 @@ export class Tutorial {
       this.text.set(tr(`tutorial.${this.step}`));
       this.skip.setText(tr('tutorial.skip'));
     }
-    const w = Math.min(L.W - 20, this.text.width + 16), h = this.text.height + 12;
-    const by = Math.round(L.H * 0.52);
-    this.bubble.size(w, h).pos(Math.round((L.W - w) / 2), by);
-    this.text.pos(Math.round(L.W / 2), by + Math.round(h / 2));
-    this.skip.layout(Math.round(L.W / 2) - 40, by - 26, 80, 20);
+    // bubble sits under the top HUD, right of the hero portraits
+    if (this.text.opts.maxWidth !== L.W - 64) { this.text.opts.maxWidth = L.W - 64; this.text.refresh(); }
+    const w = Math.min(L.W - 44, this.text.width + 16), h = this.text.height + 12;
+    const cx = Math.round(L.W / 2 + 18), by = Math.round(L.H - L.top - 112 - h);
+    this.bubble.size(w, h).pos(Math.round(cx - w / 2), by);
+    this.text.pos(cx, by + Math.round(h / 2));
+    this.skip.layout(cx - 40, by - 24, 80, 20);
     const tg = this.target(s);
     if (!tg) { this.arrow.show(false); return; }
     // the arrow sprite points right (+x); rotate it to point down at the target, bobbing

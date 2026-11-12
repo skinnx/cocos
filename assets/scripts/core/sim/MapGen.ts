@@ -85,17 +85,6 @@ export function generateMap(seed: number): GenMap {
     else if (b === 'shore') { if (r < 0.02) put(x, y, 'rock_s'); else if (r < 0.04) put(x, y, 'bush'); }
     else if (b === 'ruins') { if (r < 0.04) put(x, y, 'rock_m'); }
   }
-  // gold ore 6–8, prefer quarry
-  const oreN = rng.int(6, 8);
-  for (let k = 0, tries = 0; k < oreN && tries < 3000; tries++) {
-    const x = rng.int(3, size - 4), y = rng.int(3, size - 4);
-    const b = biome[y * size + x];
-    const d = dc(x, y);
-    if (!land(x, y) || d < 9 || b === 'shore' || kindAt.has(y * size + x)) continue;
-    if (b !== 'quarry' && tries < 1500) continue;
-    kindAt.set(y * size + x, 'ore'); k++;
-  }
-
   // POIs
   const pois: GenPoi[] = [];
   const clear = (x: number, y: number, r: number) => {
@@ -188,6 +177,20 @@ export function generateMap(seed: number): GenMap {
       }
     }
     if (ok) break;
+  }
+
+  // gold ore 6–8 (prefer quarry), placed last so it never cuts a path
+  const oreN = rng.int(6, 8);
+  for (let k = 0, tries = 0; k < oreN && tries < 4000; tries++) {
+    const x = rng.int(3, size - 4), y = rng.int(3, size - 4);
+    const i = y * size + x;
+    const b = biome[i];
+    if (!land(x, y) || dc(x, y) < 9 || b === 'shore' || kindAt.has(i) || !farFromPois(x, y, 2.5)) continue;
+    if (b !== 'quarry' && tries < 2000) continue;
+    kindAt.set(i, 'ore');
+    const seen = reach();
+    if (pois.every((p) => [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => seen[(p.y + dy) * size + p.x + dx]))) k++;
+    else kindAt.delete(i);
   }
 
   const keys = [...kindAt.keys()].sort((a, b) => a - b);

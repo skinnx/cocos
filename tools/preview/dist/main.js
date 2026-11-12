@@ -4,7 +4,7 @@
   var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
   var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
 
-  // ../../assets/scripts/game/logic/atlasData.ts
+  // assets/scripts/game/logic/atlasData.ts
   function defaultAnchor(name, w, h) {
     if (/^(tile_|edge_|ui_|icon_|font|portrait_|boon_|logo)/.test(name)) return [0, 0];
     if (/^(fx_|proj_|enemy_eyes)/.test(name)) return [w / 2, h / 2];
@@ -18,7 +18,7 @@
     return [ix, iy, ix, iy];
   }
 
-  // src/atlas.ts
+  // tools/preview/src/atlas.ts
   var Atlas = class {
     constructor() {
       this.img = null;
@@ -204,7 +204,7 @@
     }
   };
 
-  // src/audio.ts
+  // tools/preview/src/audio.ts
   var ALIAS = {
     horn_night: "night_horn",
     horn_rally: "rally_horn",
@@ -352,13 +352,13 @@
     }
   };
 
-  // ../../assets/scripts/core/data/balance.ts
+  // assets/scripts/core/data/balance.ts
   var BALANCE = {
     tile: 16,
     mapSize: 56,
     simHz: 30,
     day: { seconds: 75, firstDaySeconds: 60, callNightGoldPerSec: 0.5, buildTimeScale: 0.25 },
-    night: { enrageAfter: 120, enrageSpeedMul: 1.5, enrageDmgMul: 2, spawnWindow: (n) => Math.min(70, 35 + 4 * n), pulseMin: 6, pulseMax: 8 },
+    night: { hpScale: (n) => 1 + 0.4 * Math.max(0, n - 5), enrageAfter: 120, enrageSpeedMul: 1.5, enrageDmgMul: 2, spawnWindow: (n) => Math.min(70, 35 + 4 * n), pulseMin: 6, pulseMax: 8 },
     budget: (n) => 40 + 28 * n + 4 * n * n,
     bossBudgetMul: 0.6,
     endlessMul: 1.18,
@@ -384,7 +384,7 @@
   };
   var DT = 1 / BALANCE.simHz;
 
-  // ../../assets/scripts/core/data/talents.ts
+  // assets/scripts/core/data/talents.ts
   var TALENTS = [
     { id: "startWood", maxLevel: 3, costs: [30, 60, 120], perLevel: 20 },
     // +20 starting wood / level
@@ -408,7 +408,7 @@
     return level <= 0 ? 0 : level === 1 ? 0.5 : level === 2 ? 0.75 : 1;
   }
 
-  // ../../assets/scripts/core/data/boons.ts
+  // assets/scripts/core/data/boons.ts
   var B = (id, group, rarity, maxStacks = 1) => ({ id, group, rarity, maxStacks });
   var BOONS = [
     B("sharp", "squad", "common", 3),
@@ -463,7 +463,7 @@
     falseDawnStun: 3
   };
 
-  // ../../assets/scripts/core/data/strings.en.ts
+  // assets/scripts/core/data/strings.en.ts
   var STRINGS_EN = {
     // ── Title / meta screens
     "game.title": "Emberhold",
@@ -756,7 +756,7 @@
     "talent.hornPrecharge.desc": "Rally Horn starts 50/75/100% charged."
   };
 
-  // ../../assets/scripts/core/data/strings.vi.ts
+  // assets/scripts/core/data/strings.vi.ts
   var STRINGS_VI = {
     "game.title": "Emberhold",
     "ui.play": "Ch\u01A1i",
@@ -1034,7 +1034,7 @@
     "talent.hornPrecharge.desc": "T\xF9 v\xE0 n\u1EA1p s\u1EB5n 50/75/100%."
   };
 
-  // ../../assets/scripts/core/data/i18n.ts
+  // assets/scripts/core/data/i18n.ts
   var TABLES = { en: STRINGS_EN, vi: STRINGS_VI };
   function t(key, lang = "en", params) {
     let s = TABLES[lang]?.[key] ?? STRINGS_EN[key] ?? key;
@@ -1042,7 +1042,7 @@
     return s;
   }
 
-  // ../../assets/scripts/core/data/buildings.ts
+  // assets/scripts/core/data/buildings.ts
   var R = (wood, stone, gold) => ({ wood, stone, gold });
   var BUILDINGS = {
     hearth: {
@@ -1221,7 +1221,7 @@
   var TURRET = { dmg: 5, rate: 2, range: 5, ttl: 8, hp: 60 };
   var TAVERN = { goldPerHero: 40 };
 
-  // ../../assets/scripts/core/data/heroes.ts
+  // assets/scripts/core/data/heroes.ts
   var HEROES = {
     knight: { id: "knight", hp: 120, dmg: 10, rate: 1.2, range: 1.1, melee: true, dtype: "impact", hitsFlying: false, skill: "shieldBash", skillCd: 8, unlockEmber: 0 },
     ranger: { id: "ranger", hp: 70, dmg: 7, rate: 1.5, range: 5, melee: false, dtype: "pierce", projectile: "arrow", hitsFlying: true, skill: "arrowRain", skillCd: 10, unlockEmber: 50 },
@@ -1241,7 +1241,7 @@
     passive: { tauntRange: 2, rangerDarkMul: 1.25, tinkerRepairHps: 8, tinkerRepairRange: 3, tinkerCostMul: 0.9, clericHealHps: 6, clericRange: 4, rogueSpeedMul: 1.3 }
   };
 
-  // ../../assets/scripts/core/data/enemies.ts
+  // assets/scripts/core/data/enemies.ts
   var TAG_ARMORED = 1;
   var TAG_SWARM = 2;
   var TAG_FLYING = 4;
@@ -1253,8 +1253,8 @@
     wisp: { id: "wisp", hp: 18, speed: 1.8, dmg: 5, rate: 1, range: 0.9, bldMul: 1, tags: TAG_FLYING, field: "straight", cost: 7, firstNight: 6, radius: 0.25, weight: 1.5 },
     bomber: { id: "bomber", hp: 25, speed: 2, dmg: 60, rate: 1, range: 0.9, bldMul: 1, tags: 0, field: "default", cost: 10, firstNight: 7, radius: 0.3, weight: 1.2 },
     snuffer: { id: "snuffer", hp: 60, speed: 1.2, dmg: 8, rate: 1, range: 0.9, bldMul: 1, tags: 0, field: "snuff", cost: 16, firstNight: 8, radius: 0.34, weight: 1 },
-    mossback: { id: "mossback", hp: 1500, speed: 0.5, dmg: 40, rate: 1, range: 1.6, bldMul: 1, tags: TAG_ARMORED, field: "straight", cost: 0, firstNight: 5, radius: 1.1, weight: 0, boss: true },
-    unlit: { id: "unlit", hp: 4e3, speed: 0.7, dmg: 25, rate: 1, range: 1.3, bldMul: 1, tags: 0, field: "default", cost: 0, firstNight: 10, radius: 0.8, weight: 0, boss: true },
+    mossback: { id: "mossback", hp: 1e3, speed: 0.5, dmg: 40, rate: 1, range: 1.6, bldMul: 1, tags: TAG_ARMORED, field: "straight", cost: 0, firstNight: 5, radius: 1.1, weight: 0, boss: true },
+    unlit: { id: "unlit", hp: 6e3, speed: 0.7, dmg: 25, rate: 1, range: 1.3, bldMul: 1, tags: 0, field: "default", cost: 0, firstNight: 10, radius: 0.45, weight: 0, boss: true },
     militia: { id: "militia", hp: 50, speed: 2.2, dmg: 6, rate: 1, range: 1.1, bldMul: 1, tags: 0, field: "default", cost: 0, firstNight: 99, radius: 0.3, weight: 0 }
   };
   var WAVE_ENEMIES = ["gloomling", "skitter", "spitter", "brute", "wisp", "bomber", "snuffer"];
@@ -1263,7 +1263,7 @@
   var MOSSBACK = { crushDps: 40, shellEvery: 8, shellSecs: 3, shellSpawn: 6, heroMulInShell: 2, enrageFrac: 0.3, enrageSpeed: 0.8 };
   var UNLIT = { pulseEvery: 12, pulseRadius: 8, pulseSecs: 6, hearthLightMul: 0.6, summonEvery: 10, summonWisps: 4, teleportAt: [0.66, 0.33], healFrac: 0.05 };
 
-  // ../../assets/scripts/core/sim/Rng.ts
+  // assets/scripts/core/sim/Rng.ts
   function mulberry32Next(st2) {
     let t2 = st2.s = st2.s + 1831565813 | 0;
     t2 = Math.imul(t2 ^ t2 >>> 15, t2 | 1);
@@ -1323,7 +1323,7 @@
     return (h ^ h >>> 16) >>> 0 & 255;
   }
 
-  // ../../assets/scripts/core/sim/MapGen.ts
+  // assets/scripts/core/sim/MapGen.ts
   var HEARTH_X = 27;
   var HEARTH_Y = 27;
   var CENTER = 28;
@@ -1413,16 +1413,6 @@
       } else if (b === "ruins") {
         if (r < 0.04) put2(x, y, "rock_m");
       }
-    }
-    const oreN = rng.int(6, 8);
-    for (let k = 0, tries = 0; k < oreN && tries < 3e3; tries++) {
-      const x = rng.int(3, size - 4), y = rng.int(3, size - 4);
-      const b = biome[y * size + x];
-      const d = dc(x, y);
-      if (!land(x, y) || d < 9 || b === "shore" || kindAt.has(y * size + x)) continue;
-      if (b !== "quarry" && tries < 1500) continue;
-      kindAt.set(y * size + x, "ore");
-      k++;
     }
     const pois = [];
     const clear = (x, y, r) => {
@@ -1538,6 +1528,18 @@
       }
       if (ok) break;
     }
+    const oreN = rng.int(6, 8);
+    for (let k = 0, tries = 0; k < oreN && tries < 4e3; tries++) {
+      const x = rng.int(3, size - 4), y = rng.int(3, size - 4);
+      const i = y * size + x;
+      const b = biome[i];
+      if (!land(x, y) || dc(x, y) < 9 || b === "shore" || kindAt.has(i) || !farFromPois(x, y, 2.5)) continue;
+      if (b !== "quarry" && tries < 2e3) continue;
+      kindAt.set(i, "ore");
+      const seen = reach();
+      if (pois.every((p) => [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => seen[(p.y + dy) * size + p.x + dx]))) k++;
+      else kindAt.delete(i);
+    }
     const keys = [...kindAt.keys()].sort((a, b) => a - b);
     for (const i of keys) nodes.push({ kind: kindAt.get(i), x: i % size, y: i / size | 0 });
     const variant = new Uint8Array(size * size);
@@ -1545,7 +1547,7 @@
     return { size, biome, variant, nodes, pois };
   }
 
-  // ../../assets/scripts/core/sim/World.ts
+  // assets/scripts/core/sim/World.ts
   var EMODE = { path: 0, chase: 1, attackBld: 2, snuff: 3, ret: 4, idle: 5 };
   function newUid(w) {
     return ++w.r.uid;
@@ -1583,7 +1585,7 @@
   var isWallLike = (id) => id === "wall_wood" || id === "wall_stone" || id === "gate";
   var isTrap = (id) => id === "trap_spikes" || id === "trap_tar";
 
-  // ../../assets/scripts/core/sim/Light.ts
+  // assets/scripts/core/sim/Light.ts
   var LIGHT_ALPHA = { lit: 0, dim: 0.45, dark: 0.85, fog: 1 };
   function hearthLightRadius(w) {
     const base = BALANCE.light.hearth[w.s.hearthLevel - 1] + boonStacks(w, "bigfire") * BOON_FX.bigfire;
@@ -1673,7 +1675,7 @@
     return w.s.map.light[cy * w.size + cx];
   }
 
-  // ../../assets/scripts/core/sim/FlowField.ts
+  // assets/scripts/core/sim/FlowField.ts
   var DIRS = [
     [1, 0, 1],
     [-1, 0, 1],
@@ -1741,7 +1743,7 @@
       __publicField(this, "heap", new Heap());
       __publicField(this, "done");
       this.size = size;
-      this.dist = new Float32Array(size * size).fill(Infinity);
+      this.dist = new Float64Array(size * size).fill(Infinity);
       this.next = new Int32Array(size * size).fill(-1);
       this.done = new Uint8Array(size * size);
     }
@@ -1857,7 +1859,7 @@
     if (Math.abs(b.hp - b.pathHp) >= BALANCE.path.hpChangeFrac * b.maxHp) w.r.fieldDirty = true;
   }
 
-  // ../../assets/scripts/core/sim/Combat.ts
+  // assets/scripts/core/sim/Combat.ts
   function typeMul(dtype, tags) {
     let m = 1;
     if (dtype === "pierce" && tags & TAG_ARMORED) m *= 0.5;
@@ -2047,7 +2049,7 @@
     e.status.stun = Math.max(e.status.stun, secs);
   }
 
-  // ../../assets/scripts/core/sim/Economy.ts
+  // assets/scripts/core/sim/Economy.ts
   var ZERO = { wood: 0, stone: 0, gold: 0 };
   function scaleRes(r, m) {
     return { wood: Math.ceil(r.wood * m - 1e-9), stone: Math.ceil(r.stone * m - 1e-9), gold: Math.ceil(r.gold * m - 1e-9) };
@@ -2092,6 +2094,7 @@
   function canPlace(w, id, x, y, extraCost = ZERO) {
     const d = BUILDINGS[id];
     const cost = buildingCost(w, id, 1);
+    if (w.lightDirty) computeStaticLight(w);
     if (id === "hearth") return { ok: false, reason: "blocked", cost };
     if (d.should && !w.meta.unlockedBlueprints.includes(id)) return { ok: false, reason: "locked", cost };
     if (w.s.phase === "victory" || w.s.phase === "defeat") return { ok: false, reason: "blocked", cost };
@@ -2428,7 +2431,7 @@
     }
   }
 
-  // ../../assets/scripts/core/sim/Grid.ts
+  // assets/scripts/core/sim/Grid.ts
   function rebuildTerrain(w) {
     const n = w.size;
     w.terrain.fill(0);
@@ -2512,7 +2515,7 @@
     return true;
   }
 
-  // ../../assets/scripts/core/sim/Query.ts
+  // assets/scripts/core/sim/Query.ts
   function forEnemiesInRange(w, x, y, r, fn) {
     const arr = w.s.enemies;
     const r2 = r * r;
@@ -2544,7 +2547,7 @@
     return found;
   }
 
-  // ../../assets/scripts/core/sim/Projectiles.ts
+  // assets/scripts/core/sim/Projectiles.ts
   function fire(w, s) {
     const tx = s.tx ?? s.target?.x ?? s.x, ty = s.ty ?? s.target?.y ?? s.y;
     const dx = tx - s.x, dy = ty - s.y, d = Math.hypot(dx, dy) || 1;
@@ -2785,7 +2788,7 @@
     arr.length = j;
   }
 
-  // ../../assets/scripts/core/sim/Pois.ts
+  // assets/scripts/core/sim/Pois.ts
   function attackablePoi(w, x, y, range) {
     let best = null, bd = Infinity;
     for (const p of w.s.pois) {
@@ -2869,7 +2872,7 @@
     for (const a of added) w.s.pois.push(a);
   }
 
-  // ../../assets/scripts/core/sim/Squad.ts
+  // assets/scripts/core/sim/Squad.ts
   var HERO_RADIUS = 0.3;
   function createHero(w, id, x, y, level = 1) {
     const h = {
@@ -3344,7 +3347,7 @@
     }
   }
 
-  // ../../assets/scripts/core/sim/Boons.ts
+  // assets/scripts/core/sim/Boons.ts
   function makeBoon(w, d) {
     return { id: d.id, name: t(`boon.${d.id}.name`), desc: t(`boon.${d.id}.desc`), group: d.group, rarity: d.rarity, stacks: boonStacks(w, d.id), maxStacks: d.maxStacks };
   }
@@ -3438,7 +3441,7 @@
     return true;
   }
 
-  // ../../assets/scripts/core/sim/Enemies.ts
+  // assets/scripts/core/sim/Enemies.ts
   function spawnEnemy(w, id, x, y, o = {}) {
     if (w.s.enemies.length >= BALANCE.caps.enemies && !ENEMIES[id].boss) return null;
     const d = ENEMIES[id];
@@ -3465,7 +3468,7 @@
       dmg: d.dmg * (elite ? E2.dmgMul : 1),
       rate: d.rate,
       range: d.range,
-      radius: d.radius * (elite ? E2.scale : 1),
+      radius: Math.min(0.36, d.radius * (elite ? E2.scale : 1)),
       tags: d.tags,
       atkCd: 0.3,
       wave: o.wave ?? !o.guard,
@@ -3491,7 +3494,8 @@
       vx: 0,
       vy: 0,
       dotFire: 0,
-      dotFrost: 0
+      dotFrost: 0,
+      stuckT: 0
     };
     if (id === "mossback") {
       e.t1 = MOSSBACK.shellEvery;
@@ -3703,11 +3707,11 @@
     const dx = tx - e.x, dy = ty - e.y, d = Math.hypot(dx, dy);
     const sp = speedOf(w, e);
     const sep = { x: 0, y: 0 };
-    separation(w, e, sep);
-    let vx = 0, vy = 0;
+    if (e.stuckT < 0.5) separation(w, e, sep);
+    let vx = 0, vy = 0, wx = 0, wy = 0;
     if (d > stopDist + 0.02) {
-      vx = dx / d * sp;
-      vy = dy / d * sp;
+      vx = wx = dx / d * sp;
+      vy = wy = dy / d * sp;
       if (e.anim !== "move" && e.animT > 0.25) {
         e.anim = "move";
         e.animT = 0;
@@ -3722,7 +3726,7 @@
       e.x += vx * dt;
       e.y += vy * dt;
       clampMap(w, e);
-    } else moveUnit(w, e, vx * dt, vy * dt, e.radius, false);
+    } else if (!moveUnit(w, e, vx * dt, vy * dt, e.radius, false) && (wx || wy)) moveUnit(w, e, wx * dt, wy * dt, e.radius, false);
   }
   function chaseFoe(w, e, f, dt) {
     const d = Math.hypot(f.u.x - e.x, f.u.y - e.y);
@@ -3857,14 +3861,16 @@
     }
     e.mode = EMODE.path;
     e.snuffT = 0;
-    const tx = nx % n + 0.5, ty = Math.floor(nx / n) + 0.5;
-    const nn = field.next[nx];
-    let gx = tx, gy = ty;
-    if (nn >= 0 && !w.bldAt[nn] && Math.hypot(e.x - tx, e.y - ty) < 0.7) {
-      gx = nn % n + 0.5;
-      gy = Math.floor(nn / n) + 0.5;
+    let tx = nx % n + 0.5, ty = Math.floor(nx / n) + 0.5;
+    if (e.stuckT > 0.5) {
+      tx = cell % n + 0.5;
+      ty = Math.floor(cell / n) + 0.5;
+      if (Math.hypot(e.x - tx, e.y - ty) < 0.1) e.stuckT = 0;
     }
-    moveToward(w, e, gx, gy, dt);
+    const ox = e.x, oy = e.y;
+    moveToward(w, e, tx, ty, dt);
+    if (Math.hypot(e.x - ox, e.y - oy) < speedOf(w, e) * dt * 0.25) e.stuckT += dt;
+    else if (e.stuckT <= 0.5) e.stuckT = 0;
   }
   function explode(w, e) {
     if (e.dead) return;
@@ -3957,8 +3963,8 @@
     const sp = speedOf(w, e);
     const nx = d > 0.01 ? e.x + dx / d * sp * dt : e.x, ny = d > 0.01 ? e.y + dy / d * sp * dt : e.y;
     const touching = [];
-    for (const b of w.s.buildings) if (!isTrap(b.id) && !b.dead && distToRect(nx, ny, b) < e.radius) touching.push(b);
-    if (distToRect(nx, ny, hearthRect) < e.radius && !touching.includes(w.hearth)) touching.push(w.hearth);
+    for (const b of w.s.buildings) if (!isTrap(b.id) && !b.dead && distToRect(nx, ny, b) < ENEMIES.mossback.radius) touching.push(b);
+    if (distToRect(nx, ny, hearthRect) < ENEMIES.mossback.radius && !touching.includes(w.hearth)) touching.push(w.hearth);
     if (touching.length) {
       e.vx = 0;
       e.vy = 0;
@@ -4056,7 +4062,7 @@
     arr.length = j;
   }
 
-  // ../../assets/scripts/core/sim/Meta.ts
+  // assets/scripts/core/sim/Meta.ts
   var META_KEY = "emberhold.meta.v1";
   var RUN_KEY = "emberhold.run.v1";
   function defaultMeta() {
@@ -4148,7 +4154,7 @@
     return a;
   }
 
-  // ../../assets/scripts/core/sim/Spawner.ts
+  // assets/scripts/core/sim/Spawner.ts
   function nightBudget(n) {
     if (n <= 10) return BALANCE.budget(n);
     return BALANCE.budget(10) * Math.pow(BALANCE.endlessMul, n - 10);
@@ -4264,7 +4270,7 @@
       const boss = ENEMIES[sp.enemy].boss;
       if (!boss && w.s.enemies.length >= BALANCE.caps.enemies) break;
       const jx = w.rng.range(-0.8, 0.8), jy = w.rng.range(-0.8, 0.8);
-      spawnEnemy(w, sp.enemy, rf.x + 0.5 + jx, rf.y + 0.5 + jy, { elite: sp.elite, wave: true });
+      spawnEnemy(w, sp.enemy, rf.x + 0.5 + jx, rf.y + 0.5 + jy, { elite: sp.elite, wave: true, hpMul: boss ? 1 : BALANCE.night.hpScale(w.s.night) });
       w.r.spawnIdx++;
     }
     let alive = 0;
@@ -4321,7 +4327,7 @@
     }
   }
 
-  // ../../assets/scripts/core/sim/Towers.ts
+  // assets/scripts/core/sim/Towers.ts
   function towerRange(w, b) {
     const d = BUILDINGS[b.id];
     let r = d.range ? d.range[b.level - 1] : 0;
@@ -4592,7 +4598,7 @@
     w.s.zones = w.s.zones.filter((z) => z.t > 0);
   }
 
-  // ../../assets/scripts/core/sim/Phases.ts
+  // assets/scripts/core/sim/Phases.ts
   function dayDuration(w) {
     const base = w.s.night <= 1 ? BALANCE.day.firstDaySeconds : BALANCE.day.seconds;
     return base + TALENT_BY_ID.longDay.perLevel * (w.meta.talents.longDay ?? 0);
@@ -4832,7 +4838,7 @@
     else if (s.tutorial === 3 && s.buildings.some((b) => b.id === "tower_arrow" && b.synMask & 1)) advanceTutorial(w, 4);
   }
 
-  // ../../assets/scripts/core/sim/SpatialHash.ts
+  // assets/scripts/core/sim/SpatialHash.ts
   var SpatialHash = class {
     constructor(size, cell = 2, cap = 1024) {
       __publicField(this, "cell");
@@ -4871,7 +4877,7 @@
     }
   };
 
-  // ../../assets/scripts/core/sim/Game.ts
+  // assets/scripts/core/sim/Game.ts
   var SAVE_VERSION = 1;
   function newWorld(seed, meta) {
     const size = BALANCE.mapSize;
@@ -5329,7 +5335,7 @@
     return g.w;
   }
 
-  // ../../assets/scripts/game/logic/edges.ts
+  // assets/scripts/game/logic/edges.ts
   var PAIRS = ["grass_dirt", "grass_sand", "sand_water"];
   function materialOf(b) {
     switch (b) {
@@ -5385,25 +5391,25 @@
         return m === up || up === "sand" && m === "grass" && me === "water";
       };
       const o = [isUp(0, -1), isUp(1, 0), isUp(0, 1), isUp(-1, 0)];
-      if (o[N]) out.push(`edge_${pair}_n`);
-      if (o[E]) out.push(`edge_${pair}_e`);
-      if (o[S]) out.push(`edge_${pair}_s`);
-      if (o[W]) out.push(`edge_${pair}_w`);
       const corners = [
         ["ne", N, E, 1, -1],
         ["se", S, E, 1, 1],
         ["sw", S, W, -1, 1],
         ["nw", N, W, -1, -1]
       ];
-      for (const [c, a, b, dx, dy] of corners) {
-        if (o[a] && o[b]) out.push(`edge_${pair}_i${c}`);
-        else if (!o[a] && !o[b] && isUp(dx, dy)) out.push(`edge_${pair}_${c}`);
+      const covered = [false, false, false, false];
+      for (const [c, a, b] of corners) if (o[a] && o[b]) {
+        out.push(`edge_${pair}_i${c}`);
+        covered[a] = covered[b] = true;
       }
+      const sides = ["n", "e", "s", "w"];
+      for (let k = 0; k < 4; k++) if (o[k] && !covered[k]) out.push(`edge_${pair}_${sides[k]}`);
+      for (const [c, a, b, dx, dy] of corners) if (!o[a] && !o[b] && isUp(dx, dy)) out.push(`edge_${pair}_${c}`);
     }
     return out;
   }
 
-  // ../../assets/scripts/game/logic/light.ts
+  // assets/scripts/game/logic/light.ts
   var TEXELS_PER_TILE = 4;
   var DARK_RGB = [27, 27, 47];
   var WARM_RGB = [247, 169, 59];
@@ -5414,7 +5420,7 @@
     h = Math.imul(h ^ h >>> 13, 1274126177);
     return ((h ^ h >>> 16) >>> 0) / 4294967296;
   }
-  function sampleAlpha(inp, tx, ty) {
+  function sampleAlpha(inp, tx, ty, stepped = false) {
     const n = inp.size;
     const fx = tx - 0.5, fy = ty - 0.5;
     const x0 = Math.floor(fx), y0 = Math.floor(fy);
@@ -5424,15 +5430,22 @@
       const i = y * n + x;
       return inp.explored[i] ? inp.lightAlpha[i] : FOG_ALPHA;
     };
-    const a = get(x0, y0) * (1 - ux) + get(x0 + 1, y0) * ux;
-    const b = get(x0, y0 + 1) * (1 - ux) + get(x0 + 1, y0 + 1) * ux;
-    return a * (1 - uy) + b * uy;
+    const c00 = get(x0, y0), c10 = get(x0 + 1, y0), c01 = get(x0, y0 + 1), c11 = get(x0 + 1, y0 + 1);
+    const a = c00 * (1 - ux) + c10 * ux;
+    const b = c01 * (1 - ux) + c11 * ux;
+    const v = a * (1 - uy) + b * uy;
+    if (!stepped) return v;
+    let best = c00;
+    for (const c of [c10, c01, c11]) if (Math.abs(c - v) < Math.abs(best - v)) best = c;
+    return best;
   }
-  function fillLight(buf, inp) {
+  function fillLight(buf, inp, region) {
     const n = inp.size, T2 = TEXELS_PER_TILE, W2 = n * T2;
+    const tx0 = region ? Math.max(0, region.x0 * T2) : 0, tx1 = region ? Math.min(W2 - 1, (region.x1 + 1) * T2 - 1) : W2 - 1;
+    const ty0 = region ? Math.max(0, region.y0 * T2) : 0, ty1 = region ? Math.min(W2 - 1, (region.y1 + 1) * T2 - 1) : W2 - 1;
     const fl = (u, v) => 0.25 * (0.6 * Math.sin(inp.t * 6.1 + u * 0.9) + 0.4 * Math.sin(inp.t * 9.7 + v * 1.3 + hash22(u | 0, v | 0)));
-    for (let ty = 0; ty < W2; ty++) {
-      for (let tx = 0; tx < W2; tx++) {
+    for (let ty = ty0; ty <= ty1; ty++) {
+      for (let tx = tx0; tx <= tx1; tx++) {
         const o = (ty * W2 + tx) * 4;
         const cx = (tx + 0.5) / T2, cy = (ty + 0.5) / T2;
         const ti = Math.floor(cy) * n + Math.floor(cx);
@@ -5440,7 +5453,7 @@
         if (!inp.explored[ti]) a = FOG_ALPHA;
         else {
           const j = inp.night ? fl(cx, cy) : 0;
-          a = sampleAlpha(inp, cx + j, cy - j * 0.5);
+          a = sampleAlpha(inp, cx + j, cy - j * 0.5, true);
         }
         if (inp.night && a < WARM_ALPHA && inp.explored[ti]) {
           buf[o] = WARM_RGB[0];
@@ -5457,7 +5470,7 @@
     }
   }
 
-  // ../../assets/scripts/game/logic/minimap.ts
+  // assets/scripts/game/logic/minimap.ts
   var MINI_COLORS = {
     water: [42, 74, 138],
     shore: [185, 138, 86],
@@ -5516,7 +5529,7 @@
     for (const h of m.heroes) put(buf, n, h.x, h.y, h.leader ? MINI_COLORS.leader : MINI_COLORS.hero);
   }
 
-  // ../../assets/scripts/game/logic/gestures.ts
+  // assets/scripts/game/logic/gestures.ts
   function classifyDrag(dx, dy) {
     const ax = Math.abs(dx), ay = Math.abs(dy);
     const t2 = Math.tan(Math.PI / 8);
@@ -5604,7 +5617,7 @@
     return out;
   }
 
-  // ../../assets/scripts/game/logic/camera.ts
+  // assets/scripts/game/logic/camera.ts
   var LOOK_AHEAD_TILES = 1.5;
   var SMOOTH_SECONDS = 0.15;
   function basePixelScale(deviceWidthPx) {
@@ -5639,7 +5652,7 @@
     return Math.max(0, Math.min(2, i));
   }
 
-  // ../../assets/scripts/game/logic/sprites.ts
+  // assets/scripts/game/logic/sprites.ts
   var ANIM_FPS = { idle: 3, walk: 8, attack: 10, building: 6, fx: 12, water: 1.5, rift: 6 };
   function animFrame(t2, fps, count, loop = true) {
     if (count <= 1) return 0;
@@ -5790,7 +5803,7 @@
     return null;
   }
 
-  // ../../assets/scripts/game/logic/text.ts
+  // assets/scripts/game/logic/text.ts
   var FONT7_CHARS = new Set([..."0123456789+-!"].map((c) => c.charCodeAt(0)));
   function toAscii(s) {
     return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").replace(/[^\x20-\x7e\n]/g, "?");
@@ -5802,7 +5815,7 @@
     return String(v);
   }
 
-  // src/font.ts
+  // tools/preview/src/font.ts
   var COL = {
     white: "#f6f2e6",
     ink: "#1b1b2f",
@@ -5889,7 +5902,7 @@
     }
   };
 
-  // src/fx.ts
+  // tools/preview/src/fx.ts
   var Fx = class {
     constructor(atlas, font) {
       this.atlas = atlas;
@@ -6036,7 +6049,7 @@
     }
   };
 
-  // src/info.ts
+  // tools/preview/src/info.ts
   function buildingIcon(id, level = 1) {
     switch (id) {
       case "hearth":
@@ -6066,7 +6079,7 @@
     }
   }
 
-  // src/light.ts
+  // tools/preview/src/light.ts
   var LightOverlay = class {
     constructor() {
       this.cv = document.createElement("canvas");
@@ -6091,7 +6104,7 @@
     }
   };
 
-  // src/world.ts
+  // tools/preview/src/world.ts
   var T = 16;
   var _WorldRenderer = class _WorldRenderer {
     constructor(atlas, fx) {
@@ -6328,7 +6341,7 @@
   _WorldRenderer.FEET = 3;
   var WorldRenderer = _WorldRenderer;
 
-  // src/build.ts
+  // tools/preview/src/build.ts
   var TABS = ["defense", "light", "traps", "economy"];
   var CARD_W = 50;
   var CARD_H = 76;
@@ -6532,7 +6545,7 @@
         const range = d.range[b.level - 1] + (b.synergies.includes("embedded") ? BALANCE.synergy.embeddedRangeBonus : 0);
         for (const p of ringPoints(cx, cy, range, 0.6)) {
           const q = S2(p.x, p.y);
-          A.drawC(g, "ui_range_dot", q.x, q.y, { alpha: 0.4 });
+          A.drawC(g, "ui_range_dot", q.x, q.y, { alpha: 0.85 });
         }
         if (b.synergies.includes("flame")) {
           const br = s.buildings.filter((o) => o.id === "brazier" && o.lit && Math.hypot(o.x + 0.5 - cx, o.y + 0.5 - cy) <= BALANCE.synergy.flameRange + (b.w + 1) / 2);
@@ -6800,7 +6813,7 @@
     g.globalAlpha = 1;
   }
 
-  // src/hud.ts
+  // tools/preview/src/hud.ts
   var miniCv = null;
   var miniT = -1;
   function drawHud(app2) {
@@ -7006,7 +7019,7 @@
     const s = app2.state;
     const g = app2.b;
     const { W: W2, H, safe } = app2;
-    const box = { x: safe.l + 10, y: safe.t + 60, w: W2 - safe.l - safe.r - 20, h: H - safe.t - safe.b - 110 };
+    const box = { x: safe.l + 12, y: safe.t + 104, w: W2 - safe.l - safe.r - 24, h: H - safe.t - safe.b - 104 - 52 };
     const targets = [];
     const hearth = s.buildings.find((b) => b.uid === s.hearthUid);
     if (hearth) targets.push({ tx: hearth.x + 1, ty: hearth.y + 1, icon: "icon_fire", pulse: false });
@@ -7076,7 +7089,7 @@
     }, { icon: "icon_moon" });
   }
 
-  // src/screens.ts
+  // tools/preview/src/screens.ts
   function drawScreens(app2) {
     const s = app2.state;
     if (app2.screen === "loading") {
@@ -7312,19 +7325,25 @@
     const dawn = s.boonSource !== "chest";
     const pw = W2 - safe.l - safe.r - 12, px = safe.l + 6;
     const cardH = 54;
-    const headH = dawn ? 74 : 34;
-    const ph = headH + offer.length * (cardH + 4) + 8;
+    const headH = dawn ? 67 : 36;
+    const ph = headH + offer.length * (cardH + 4) + 4;
     const py = Math.max(safe.t + 6, Math.round(H / 2 - ph / 2));
     A.nine(g, "ui_panel_stone", px, py, pw, ph);
     drawBig(app2, (dawn ? app2.tr("dawn.title") : app2.tr("chest.title")).toUpperCase(), W2 / 2, py + 6, COL.gold);
     let y = py + 28;
     if (dawn) {
-      f.draw(g, app2.tr("dawn.summary", { n: s.stats.nightsSurvived }), W2 / 2, y, { align: "center", color: COL.white });
+      f.draw(g, app2.tr("dawn.summary", { n: s.night }), W2 / 2, y, { align: "center", color: COL.white });
       y += 11;
-      A.drawTL(g, "icon_skull", px + 14, y - 4);
-      f.draw(g, `${app2.tr("dawn.kills")}: ${s.stats.kills}`, px + 32, y + 1, { color: COL.white });
-      A.drawTL(g, "icon_gold", px + pw / 2 + 6, y - 4);
-      f.draw(g, `${s.stats.goldEarned}`, px + pw / 2 + 24, y + 1, { color: COL.gold });
+      const kills = `${s.stats.kills}`, gold = `${s.stats.goldEarned}`;
+      const rowW = 16 + 2 + f.width(kills) + 10 + 16 + 2 + f.width(gold);
+      let rx = Math.round(W2 / 2 - rowW / 2);
+      A.drawTL(g, "icon_skull", rx, y - 4);
+      rx += 18;
+      f.draw(g, kills, rx, y + 1, { color: COL.white });
+      rx += f.width(kills) + 10;
+      A.drawTL(g, "icon_gold", rx, y - 4);
+      rx += 18;
+      f.draw(g, gold, rx, y + 1, { color: COL.gold });
       y += 16;
       f.draw(g, app2.tr("dawn.choose"), W2 / 2, y, { align: "center", color: COL.fire });
       y += 12;
@@ -7400,7 +7419,7 @@
     ui.button("toTitle", px + 8, by, pw - 16, 24, app2.tr("end.title"), () => app2.toTitle(), { icon: "icon_play" });
   }
 
-  // src/ui.ts
+  // tools/preview/src/ui.ts
   var UI = class {
     constructor(atlas, font, ctx) {
       this.atlas = atlas;
@@ -7473,12 +7492,13 @@
         A.get(`ui_${fill}`);
         return;
       }
-      if (iw >= 3 && ih >= 2) A.nine(this.ctx, `ui_${fill}`, x + L, y + T2, iw, ih);
-      else this.ctx.drawImage(A.img, ff.x + 1, ff.y + Math.floor(ff.h / 2), 1, 1, x + L, y + T2, iw, ih);
+      const [fl, ft, fr2, fb] = ff.slice ?? [1, 1, 1, 1];
+      if (iw >= fl + fr2 + 1 && ih >= ft + fb + 2) A.nine(this.ctx, `ui_${fill}`, x + L, y + T2, iw, ih);
+      else this.ctx.drawImage(A.img, ff.x + fl, ff.y + ft, 1, Math.max(1, ff.h - ft - fb), x + L, y + T2, iw, ih);
     }
   };
 
-  // ../../assets/scripts/core/bots/nav.ts
+  // assets/scripts/core/bots/nav.ts
   var BLOCK_NODES = /* @__PURE__ */ new Set(["pine", "oak", "rock_l", "ore"]);
   function walkGrid(s) {
     const n = s.map.size;
@@ -7563,7 +7583,7 @@
     game.cmd({ t: "move", dir: { x: 0, y: 0 } });
   }
 
-  // ../../assets/scripts/core/bots/BotCore.ts
+  // assets/scripts/core/bots/BotCore.ts
   var C = 28;
   var RING = { x0: 23, y0: 23, x1: 32, y1: 32 };
   var GATES = [{ x: 28, y: 23 }, { x: 27, y: 32 }];
@@ -7680,7 +7700,7 @@
     }
   }
   function needStone(s) {
-    return s.res.stone < 20 && s.res.wood > 60;
+    return s.res.wood > 30 && s.res.stone * 3 < s.res.wood;
   }
   function harvestDay(game, bs, o) {
     const s = game.state;
@@ -7721,7 +7741,11 @@
       bs.target = best.uid;
     }
     const nd = node;
-    walkTo(game, bs.wk, "n" + nd.uid, (x, y) => Math.max(Math.abs(x - nd.x), Math.abs(y - nd.y)) === 1);
+    if (walkTo(game, bs.wk, "n" + nd.uid, (x, y) => Math.abs(x - nd.x) + Math.abs(y - nd.y) === 1)) {
+      const cx = Math.max(nd.x, Math.min(ld.x, nd.x + 1)), cy = Math.max(nd.y, Math.min(ld.y, nd.y + 1));
+      const dx = cx - ld.x, dy = cy - ld.y, d = Math.hypot(dx, dy);
+      if (d > 0.6) game.cmd({ t: "move", dir: { x: dx / d, y: dy / d } });
+    }
   }
   function nightMove(game, bs, o) {
     const s = game.state;
@@ -7796,11 +7820,11 @@
     }
   }
 
-  // ../../assets/scripts/core/bots/index.ts
+  // assets/scripts/core/bots/index.ts
   var PREF = ["reload", "hawk", "sharp", "boulder", "mirror", "thick", "living", "falsedawn", "twin", "bigfire", "mason", "rebirth", "spikes", "ash", "leech", "cooldown", "harvest", "embers"];
   var AutoplayBot = (game) => botStep(game, { build: true, extras: true, boonPref: PREF });
 
-  // src/bots.ts
+  // tools/preview/src/bots.ts
   var autoplayBot = AutoplayBot;
   function clearNight(g) {
     const w = worldOf(g), s = w.s;
@@ -7875,7 +7899,7 @@
     return k;
   }
 
-  // src/autoplay.ts
+  // tools/preview/src/autoplay.ts
   var Autoplay = class {
     constructor(app2) {
       this.app = app2;
@@ -7916,7 +7940,7 @@
     }
   };
 
-  // src/app.ts
+  // tools/preview/src/app.ts
   var App = class {
     constructor() {
       this.buf = document.createElement("canvas");
@@ -7954,6 +7978,8 @@
       this.hearthLowT = 0;
       this.minimapBig = false;
       this.bossIntro = null;
+      /** debug/e2e camera override (tile units) */
+      this.camFocus = null;
       // ── main loop ───────────────────────────────────────────────────────────
       this.last = 0;
       this.frame = (now) => {
@@ -8054,6 +8080,7 @@
       this.emberCredited = false;
       this.lastPhase = "";
       this.build.reset();
+      this.camFocus = null;
       this.fx = Object.assign(this.fx, new Fx(this.atlas, this.font));
       this.world.attacked.clear();
       const s = game.state;
@@ -8067,6 +8094,7 @@
     }
     toTitle() {
       this.game = null;
+      this.camFocus = null;
       this.screen = "title";
       this.paused = false;
       this.autoplay.on = false;
@@ -8209,7 +8237,10 @@
       const hearth = s.buildings.find((b) => b.uid === s.hearthUid);
       const leader2 = s.heroes.find((h) => h.leader) ?? s.heroes[0];
       if (this.build.open && this.build.freeCam) return;
-      if ((s.phase === "dusk" || !leader2) && hearth) {
+      if (this.camFocus) {
+        tx = this.camFocus.x * T;
+        ty = this.camFocus.y * T;
+      } else if ((s.phase === "dusk" || !leader2) && hearth) {
         tx = (hearth.x + hearth.w / 2) * T;
         ty = (hearth.y + hearth.h / 2) * T;
       } else if (leader2) {
@@ -8238,15 +8269,13 @@
         this.audio.sfx("horn_night");
         this.audio.music(s.boss ? "boss" : "night");
       }
+      if (p === "day" && prev === "dawn") this.saveRun();
       if (p === "day" && prev) {
         this.audio.music("day");
         this.fx.banner(this.tr("phase.day") + " " + s.night, void 0, COL.gold, 1.6);
       }
       if (p === "dusk") this.omensOpen = true;
-      if (p === "dawn") {
-        this.audio.music("day");
-        this.saveRun();
-      }
+      if (p === "dawn") this.audio.music("day");
       if (p === "victory") {
         this.audio.sfx("victory");
         this.fx.fade = 1;
@@ -8652,7 +8681,7 @@
     }
   };
 
-  // src/debug.ts
+  // tools/preview/src/debug.ts
   function installDebug(app2) {
     const eh = {
       state: () => app2.state,
@@ -8693,9 +8722,13 @@
         app2.clearRun();
         app2.newRun(seed ?? 1);
       },
+      /** pin the camera on a tile point (null = follow the leader again) */
       camTo: (tx, ty) => {
-        app2.cam.x = tx * 16;
-        app2.cam.y = ty * 16;
+        app2.camFocus = tx === null ? null : { x: tx, y: ty ?? 0 };
+        if (tx !== null) {
+          app2.cam.x = tx * 16;
+          app2.cam.y = (ty ?? 0) * 16;
+        }
       },
       tileToClient: (tx, ty) => {
         const p = app2.tileToScreen(tx, ty);
@@ -8710,7 +8743,7 @@
     window.__EH = eh;
   }
 
-  // src/main.ts
+  // tools/preview/src/main.ts
   var app = new App();
   var debug = /[?&]debug=1/.test(location.search);
   window.addEventListener("error", (e) => app.reportError(e.error || e.message));

@@ -157,7 +157,7 @@ export class BuildUI {
       const sc = S(cx, cy);
       if (sc.x < -160 || sc.y < -160 || sc.x > app.W + 160 || sc.y > app.H + 160) continue;
       const range = d.range[b.level - 1] + (b.synergies.includes('embedded') ? BALANCE.synergy.embeddedRangeBonus : 0);
-      for (const p of ringPoints(cx, cy, range, 0.6)) { const q = S(p.x, p.y); A.drawC(g, 'ui_range_dot', q.x, q.y, { alpha: 0.4 }); }
+      for (const p of ringPoints(cx, cy, range, 0.6)) { const q = S(p.x, p.y); A.drawC(g, 'ui_range_dot', q.x, q.y, { alpha: 0.85 }); }
       if (b.synergies.includes('flame')) {
         const br = s.buildings.filter((o) => o.id === 'brazier' && o.lit && Math.hypot(o.x + 0.5 - cx, o.y + 0.5 - cy) <= BALANCE.synergy.flameRange + (b.w + 1) / 2);
         for (const o of br) for (const p of dottedLine(cx, cy, o.x + 0.5, o.y + 0.5, 0.35)) { const q = S(p.x, p.y); A.drawC(g, 'ui_link_dot', q.x, q.y); }

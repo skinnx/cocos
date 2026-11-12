@@ -159,9 +159,12 @@ export class Hud {
     this.horn.layout(right - hb, bottom, hb, hb);
     this.hornRing.pos(Math.round(hb / 2), Math.round(hb / 2));
     this.hammer.layout(right - hb * 2 - 6, bottom, hb, hb);
-    this.callNight.layout(Math.round(L.W / 2) - 62, bottom + 2, 104, 26);
-    this.startNight.layout(Math.round(L.W / 2) - 50, bottom + 110, 100, 26);
-    this.omensBtn.layout(Math.round(L.W / 2) + 54, bottom + 110, 26, 26);
+    this.callNight.setText(tr('hud.callNight')); this.startNight.setText(tr('hud.startNight'));
+    const cw = Math.max(96, this.callNight.contentWidth());
+    this.callNight.layout(Math.max(left, this.hammer.x - 6 - cw), bottom + 2, cw, 26);
+    const sw = Math.max(96, this.startNight.contentWidth());
+    this.startNight.layout(Math.round((L.W - sw - 30) / 2), bottom + 142, sw, 26);
+    this.omensBtn.layout(Math.round((L.W - sw - 30) / 2) + sw + 4, bottom + 142, 26, 26);
     this.bossName.pos(Math.round(L.W / 2), top - 88);
     this.bossBar.pos(Math.round(L.W / 2) - 75, top - 100);
     this.banner.pos(Math.round(L.W / 2), Math.round(L.H * 0.62));
@@ -230,7 +233,7 @@ export class Hud {
     this.sunMoon.set(night || s.phase === 'dusk' ? 'icon_moon' : 'icon_sun').pos(Math.round(cx + Math.cos(a) * r), Math.round(cy + Math.sin(a) * r));
     const nightN = s.night;
     const title = s.endless || nightN > 10 ? tr('hud.nightEndless', { n: nightN }) : tr('hud.night', { n: nightN });
-    this.phaseText.set(`${tr(`phase.${s.phase}`)} - ${title}`).pos(cx, cy - 6);
+    this.phaseText.set(s.phase === 'day' || s.phase === 'night' ? title : `${tr(`phase.${s.phase}`)} - ${title}`).pos(cx, cy - 6);
     if (night) {
       this.leftText.show(true).set(tr('hud.enemiesLeft', { n: s.enemiesLeft })).pos(cx - Math.round(this.leftText.width / 2), cy - 22);
     } else this.leftText.show(false);
@@ -253,7 +256,6 @@ export class Hud {
     }
 
     // bottom buttons by phase / mode
-    const inBuild = s.buildMode || s.phase === 'dusk';
     const playing = s.phase === 'day' || s.phase === 'night';
     this.hammer.show(playing && !s.buildMode);
     this.horn.show(playing && !s.buildMode);
@@ -261,7 +263,6 @@ export class Hud {
     if (s.phase === 'day') this.callNight.setText(tr('hud.callNight'));
     this.startNight.show(s.phase === 'dusk');
     this.omensBtn.show(s.phase === 'dusk');
-    void inBuild;
     const charge = Math.max(0, Math.min(1, s.hornCharge));
     this.horn.setEnabled(charge >= 1 && s.hornT <= 0);
     if (charge < 1) {
@@ -291,10 +292,24 @@ export class Hud {
     // low-Hearth vignette (+ rift flash at night start in purple)
     this.riftFlashT = Math.max(0, this.riftFlashT - dt);
     const va = lowHearthAlpha(hf, t);
-    for (const v of this.vignette) {
-      if (va > 0) v.show(true).color(PAL.R[0], PAL.R[1], PAL.R[2], Math.round(va * 200));
-      else v.show(false);
+    // night start: the screen edges on the side of each active rift flash purple (SPEC §8)
+    const riftSides = [false, false, false, false]; // top, bottom, left, right
+    if (this.riftFlashT > 0) {
+      const inset = { x: 0, y: 0, w: L.W, h: L.H };
+      for (const p of s.pois) {
+        if (p.kind !== 'rift' || !p.active) continue;
+        const a = edgeArrow(this.ctx.tileToUi(p.x + 0.5, p.y + 0.5), inset);
+        if (a.onScreen) continue;
+        if (a.y >= L.H - 1) riftSides[0] = true; else if (a.y <= 1) riftSides[1] = true;
+        if (a.x <= 1) riftSides[2] = true; else if (a.x >= L.W - 1) riftSides[3] = true;
+      }
     }
+    const pulse = Math.round(110 + 90 * Math.sin(this.riftFlashT * 18));
+    this.vignette.forEach((v, i) => {
+      if (riftSides[i]) v.show(true).color(PAL.M[0], PAL.M[1], PAL.M[2], pulse);
+      else if (va > 0) v.show(true).color(PAL.R[0], PAL.R[1], PAL.R[2], Math.round(va * 200));
+      else v.show(false);
+    });
 
     this.updateArrows(s, t);
     this.minimap.update(s, dt);
@@ -312,7 +327,6 @@ export class Hud {
       const p = flyPath(k, f.x0, f.y0, f.x1, f.y1);
       f.h.pos(Math.round(p.x), Math.round(p.y));
     }
-    void L;
   }
 
   private updateArrows(s: GameState, t: number): void {

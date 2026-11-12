@@ -172,10 +172,9 @@ export class BuildGestures {
   private place(): void {
     const id = this.selected, gh = this.ghost;
     if (!id || !gh) return;
+    const ok = !!this.ctx.game && this.ctx.game.canPlace(id, gh.x, gh.y).ok;
     this.ctx.cmd({ t: 'place', id, x: gh.x, y: gh.y });
-    const g = this.ctx.game;
-    if (g && g.canPlace(id, gh.x, gh.y).ok === false) return; // core emits buildFail; keep the ghost to adjust
-    this.ghost = null;
+    if (ok) this.ghost = null; // on failure core emits buildFail (toast + sfx) and the ghost stays to be adjusted
   }
 
   /** Grid state of a tile for the overlay (cached ~3×/s). */

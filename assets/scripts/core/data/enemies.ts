@@ -32,8 +32,8 @@ export const ENEMIES: Record<EnemyId, EnemyDef> = {
   wisp: { id: 'wisp', hp: 18, speed: 1.8, dmg: 5, rate: 1, range: 0.9, bldMul: 1, tags: TAG_FLYING, field: 'straight', cost: 7, firstNight: 6, radius: 0.25, weight: 1.5 },
   bomber: { id: 'bomber', hp: 25, speed: 2.0, dmg: 60, rate: 1, range: 0.9, bldMul: 1, tags: 0, field: 'default', cost: 10, firstNight: 7, radius: 0.3, weight: 1.2 },
   snuffer: { id: 'snuffer', hp: 60, speed: 1.2, dmg: 8, rate: 1, range: 0.9, bldMul: 1, tags: 0, field: 'snuff', cost: 16, firstNight: 8, radius: 0.34, weight: 1 },
-  mossback: { id: 'mossback', hp: 1500, speed: 0.5, dmg: 40, rate: 1, range: 1.6, bldMul: 1, tags: TAG_ARMORED, field: 'straight', cost: 0, firstNight: 5, radius: 1.1, weight: 0, boss: true },
-  unlit: { id: 'unlit', hp: 4000, speed: 0.7, dmg: 25, rate: 1, range: 1.3, bldMul: 1, tags: 0, field: 'default', cost: 0, firstNight: 10, radius: 0.8, weight: 0, boss: true },
+  mossback: { id: 'mossback', hp: 1000, speed: 0.5, dmg: 40, rate: 1, range: 1.6, bldMul: 1, tags: TAG_ARMORED, field: 'straight', cost: 0, firstNight: 5, radius: 1.1, weight: 0, boss: true },
+  unlit: { id: 'unlit', hp: 6500, speed: 1.0, dmg: 25, rate: 1, range: 1.3, bldMul: 1, tags: 0, field: 'default', cost: 0, firstNight: 10, radius: 0.45, weight: 0, boss: true },
   militia: { id: 'militia', hp: 50, speed: 2.2, dmg: 6, rate: 1, range: 1.1, bldMul: 1, tags: 0, field: 'default', cost: 0, firstNight: 99, radius: 0.3, weight: 0 },
 };
 

@@ -60,6 +60,8 @@ export class App {
   hearthLowT = 0;
   minimapBig = false;
   bossIntro: { name: string; t: number } | null = null;
+  /** debug/e2e camera override (tile units) */
+  camFocus: { x: number; y: number } | null = null;
 
   constructor() {
     this.canvas = document.getElementById('game') as HTMLCanvasElement;
@@ -111,7 +113,7 @@ export class App {
     this.game = game;
     this.seedN = game.state.seed;
     this.screen = 'game'; this.paused = false; this.emberCredited = false; this.lastPhase = '';
-    this.build.reset();
+    this.build.reset(); this.camFocus = null;
     this.fx = Object.assign(this.fx, new Fx(this.atlas, this.font));
     this.world.attacked.clear();
     const s = game.state;
@@ -122,7 +124,7 @@ export class App {
   }
 
   toTitle() {
-    this.game = null; this.screen = 'title'; this.paused = false; this.autoplay.on = false; this.fx.fade = 1;
+    this.game = null; this.camFocus = null; this.screen = 'title'; this.paused = false; this.autoplay.on = false; this.fx.fade = 1;
     this.build.reset();
     this.audio.music('day');
   }
@@ -240,7 +242,8 @@ export class App {
     const hearth = s.buildings.find((b) => b.uid === s.hearthUid);
     const leader = s.heroes.find((h) => h.leader) ?? s.heroes[0];
     if (this.build.open && this.build.freeCam) return; // build mode pans freely
-    if ((s.phase === 'dusk' || !leader) && hearth) { tx = (hearth.x + hearth.w / 2) * T; ty = (hearth.y + hearth.h / 2) * T; }
+    if (this.camFocus) { tx = this.camFocus.x * T; ty = this.camFocus.y * T; }
+    else if ((s.phase === 'dusk' || !leader) && hearth) { tx = (hearth.x + hearth.w / 2) * T; ty = (hearth.y + hearth.h / 2) * T; }
     else if (leader) {
       const la = lookAhead(this.moveDir);
       const a = this.alpha();
@@ -260,9 +263,10 @@ export class App {
   onPhase(p: string, prev: string) {
     const s = this.state!;
     if (p === 'night') { this.fx.banner(this.tr('banner.night', { n: s.night }), undefined, COL.purple); this.audio.sfx('horn_night'); this.audio.music(s.boss ? 'boss' : 'night'); }
+    if (p === 'day' && prev === 'dawn') this.saveRun(); // SPEC §2.2: auto-save once the dawn boon is chosen
     if (p === 'day' && prev) { this.audio.music('day'); this.fx.banner(this.tr('phase.day') + ' ' + s.night, undefined, COL.gold, 1.6); }
     if (p === 'dusk') this.omensOpen = true;
-    if (p === 'dawn') { this.audio.music('day'); this.saveRun(); }
+    if (p === 'dawn') this.audio.music('day');
     if (p === 'victory') { this.audio.sfx('victory'); this.fx.fade = 1; }
     if (p === 'defeat') { this.audio.sfx('defeat'); this.fx.fade = 1; }
     this.fx.fade = Math.max(this.fx.fade, 0.6);

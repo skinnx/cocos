@@ -29,7 +29,8 @@ export function installDebug(app: App) {
     missing: () => [...app.atlas.missing],
     screen: (name?: string) => { if (name) (app as any).screen = name; return app.screen; },
     start: (seed?: number) => { app.clearRun(); app.newRun(seed ?? 1); },
-    camTo: (tx: number, ty: number) => { app.cam.x = tx * 16; app.cam.y = ty * 16; },
+    /** pin the camera on a tile point (null = follow the leader again) */
+    camTo: (tx: number | null, ty?: number) => { app.camFocus = tx === null ? null : { x: tx, y: ty ?? 0 }; if (tx !== null) { app.cam.x = tx * 16; app.cam.y = (ty ?? 0) * 16; } },
     tileToClient: (tx: number, ty: number) => { const p = app.tileToScreen(tx, ty); return { x: (p.x * app.n) / app.dpr, y: (p.y * app.n) / app.dpr }; },
     artToClient: (x: number, y: number) => ({ x: ((x + 0.5) * app.n) / app.dpr, y: ((y + 0.5) * app.n) / app.dpr }),
     hit: (id: string) => { const h = app.ui.hits.find((q) => q.id === id); return h ? { x: ((h.x + h.w / 2) * app.n) / app.dpr, y: ((h.y + h.h / 2) * app.n) / app.dpr } : null; },

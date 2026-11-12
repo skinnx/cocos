@@ -145,8 +145,9 @@ function restore(w: World, json: string): boolean {
   computeStaticLight(w);
   updateLight(w);
   smoothLightAlpha(w, 0, true);
+  const fd = o.r.fieldDirty, sd = o.r.snuffDirty, fl = o.r.fieldLastStep;
   recomputeFields(w, 'restore');
-  w.r.fieldLastStep = o.r.fieldLastStep;
+  w.r.fieldDirty = fd; w.r.snuffDirty = sd; w.r.fieldLastStep = fl;
   updateWallMasks(w);
   updateTimeScale(w);
   w.events.length = 0;

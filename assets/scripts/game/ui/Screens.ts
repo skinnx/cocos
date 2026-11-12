@@ -94,9 +94,10 @@ class Line {
     this.node = mkNode('line', parent);
     this.img = new SpriteHandle('img', this.node).anchor(0.5, 0.5);
     this.title = new BitmapText(this.node, { ax: 0, ay: 1, color: PAL.z, scalable: false });
-    this.sub = new BitmapText(this.node, { ax: 0, ay: 1, color: PAL.w, scalable: false, maxWidth: 120 });
+    this.sub = new BitmapText(this.node, { ax: 0, ay: 1, color: PAL.w, scalable: false, maxWidth: 110 });
     this.action = new Button(this.node, { text: '', z });
   }
+  rowY = 0; rowH = 30; right = 200;
 }
 
 export class BarracksScreen extends Screen {
@@ -126,7 +127,7 @@ export class BarracksScreen extends Screen {
     this.title.pos(Math.round(L.W / 2), top - 2);
     const tw = Math.floor((w - 8) / 3);
     this.tabs.forEach((b, i) => b.layout(10 + i * tw, top - 36, tw - 2, 18));
-    this.ember.pos(12, top - 22);
+    this.ember.pos(12, top - 9);
     this.back.layout(Math.round(L.W / 2) - 50, L.bottom + 6, 100, 26);
     const rowH = Math.min(40, Math.floor((top - 44 - (L.bottom + 46)) / 8));
     this.lines.forEach((l, i) => {
@@ -134,7 +135,7 @@ export class BarracksScreen extends Screen {
       l.img.pos(12, Math.round(rowH / 2));
       l.title.pos(28, rowH - 3);
       l.sub.pos(28, rowH - 13);
-      l.action.layout(w - 74, Math.round(rowH / 2) - 11, 64, 22).offset(14, top - 42 - (i + 1) * rowH);
+      l.rowY = top - 42 - (i + 1) * rowH; l.rowH = rowH; l.right = w - 8;
     });
   }
   refresh(): void {
@@ -183,6 +184,10 @@ export class BarracksScreen extends Screen {
       l.title.set(r.title);
       l.sub.set(r.sub);
       l.action.setText(r.action).setEnabled(r.enabled).setSelected(!!r.selected);
+      const bw = Math.max(56, Math.ceil((l.action.label?.width ?? 0) + 12));
+      l.action.layout(l.right - bw, Math.round(l.rowH / 2) - 11, bw, 22).offset(14, l.rowY);
+      l.sub.opts.maxWidth = Math.max(60, l.right - bw - 34);
+      l.sub.refresh();
       l.action.onTap = () => { ctx.sfx('ui_click'); r.on(); };
     });
   }
@@ -326,13 +331,16 @@ export class DawnScreen extends Screen {
     } else { this.panel.show(false); this.title.show(false); this.lines.show(false); }
     this.dim.alpha(dawn ? 140 : 90);
     this.boons.update(s.boonOffer, s.boonSource ?? (dawn ? 'dawn' : 'chest'), Math.round(L.H * 0.3), dt);
-    const offer = dawn && !s.boonOffer ? s.tavernOffer : null;
+    // tavern (SHOULD): the dawn hero offer sits under the boon cards
+    const offer = dawn ? s.tavernOffer : null;
+    const n = offer?.length ?? 0;
     for (let i = 0; i < this.hire.length; i++) {
       const o = offer?.[i];
       if (!o) { this.hire[i].show(false); this.hireImg[i].show(false); continue; }
-      const x = Math.round(L.W / 2) + (i === 0 ? -100 : 8);
-      this.hireImg[i].show(true).set(`portrait_${o.hero}`).pos(x + 46, Math.round(L.H * 0.42));
-      this.hire[i].show(true).layout(x, Math.round(L.H * 0.36), 92, 24).setText(tr('tavern.hire', { n: o.cost })).setEnabled(s.res.gold >= o.cost);
+      const bw = 104, x = Math.round(L.W / 2 - (n * (bw + 34)) / 2 + i * (bw + 34));
+      const y = Math.round(L.H * 0.3) - 48;
+      this.hireImg[i].show(true).set(`portrait_${o.hero}`).anchor(0, 0).pos(x, y);
+      this.hire[i].show(true).layout(x + 28, y, bw, 24).setText(tr('tavern.hire', { n: o.cost })).setEnabled(s.res.gold >= o.cost);
     }
   }
 }
@@ -362,9 +370,9 @@ export class EndScreen extends Screen {
     const w = Math.min(L.W - 20, 210), h = 220, x = Math.round((L.W - w) / 2), y = Math.round((L.H - h) / 2);
     this.panel.size(w, h).pos(x, y);
     this.art.pos(L.W / 2, y + h - 22);
-    this.title.pos(L.W / 2, y + h - 44);
-    this.sub.pos(L.W / 2, y + h - 58);
-    this.stats.pos(x + 16, y + h - 78);
+    this.title.pos(L.W / 2, y + h - 40);
+    this.sub.pos(L.W / 2, y + h - 62);
+    this.stats.pos(x + 16, y + h - 80);
     this.ember.pos(x + 16, y + 84);
     this.endless.layout(x + 12, y + 44, w - 24, 26);
     this.toTitle.layout(x + 12, y + 12, w - 24, 26);

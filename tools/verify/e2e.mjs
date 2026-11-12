@@ -63,7 +63,7 @@ async function main() {
     await touch('touchStart', [from]);
     for (let i = 1; i <= steps; i++) { await touch('touchMove', [{ x: from.x + ((to.x - from.x) * i) / steps, y: from.y + ((to.y - from.y) * i) / steps }]); await sleep(stepMs); }
     if (holdMs) { const t0 = Date.now(); while (Date.now() - t0 < holdMs) { await touch('touchMove', [to]); await sleep(50); } }
-    if (beforeEnd) await beforeEnd();
+    if (beforeEnd && (await beforeEnd()) === 'cancelled') { await sleep(60); return; }
     await touch('touchEnd', []);
     await sleep(60);
   }
@@ -106,9 +106,8 @@ async function main() {
     s = await S();
     const moved = Math.hypot(s.leader.x - before.x, s.leader.y - before.y);
     check('touch drag moves the squad leader', moved > 0.8, `moved ${moved.toFixed(2)} tiles`);
-    await drag({ x: 195, y: 620 }, { x: 150, y: 560 }, { holdMs: 900 });
-    await sleep(1200);
-    await shot('day-explore');
+    // second walk: screenshot while the floating joystick is held
+    await drag({ x: 195, y: 620 }, { x: 160, y: 575 }, { holdMs: 1300, beforeEnd: () => shot('day-explore') });
 
     // ── 4. Build mode: paint a wall line, place a tower ─────────────────────
     await ev(() => window.__EH.grant({ wood: 300, stone: 200, gold: 100 }));
@@ -158,19 +157,19 @@ async function main() {
     // build-mode shot: wall card again, mid-stroke across an obstacle (green + red ghosts), tower range + synergy visible
     await tap(await cardC(0));
     const c0 = await tileC(plan.hearth.x - 3.5, plan.hearth.y + 1.5), c1 = await tileC(plan.hearth.x + 3.5, plan.hearth.y + 1.5);
-    await drag(c0, c1, { steps: 14, stepMs: 30, beforeEnd: async () => { await shot('build-mode'); await touch('touchCancel', []); } });
+    await drag(c0, c1, { steps: 14, stepMs: 30, beforeEnd: async () => { await shot('build-mode'); await touch('touchCancel', []); return 'cancelled'; } });
     await ev(() => { window.__EH.app.build.paint = null; });
     await tapUI('buildDone');
     check('Build mode closes', !(await S()).buildMode);
 
     // ── 5. autoplay through 2 full nights ───────────────────────────────────
     await ev(() => { window.__EH.autoplay(true); window.__EH.speed(8); });
-    let tookNight = false;
     const tA = Date.now();
+    let lastLog = 0;
     for (;;) {
       s = await S();
+      if (Date.now() - lastLog > 15000) { lastLog = Date.now(); log(`  autoplay: ${s.phase} night ${s.night}, ${s.enemies} enemies, ${s.buildings} buildings, fps ${(await ev(() => window.__EH.fps())).toFixed(0)}`); }
       if (!s || s.phase === 'defeat' || s.survived >= 2 || Date.now() - tA > 240000) break;
-      if (s.phase === 'night' && s.night === 2 && !tookNight && s.enemies > 6) tookNight = true;
       await sleep(250);
     }
     check('autoplay survives 2 full nights', s.survived >= 2, `phase=${s.phase} night=${s.night} survived=${s.survived} in ${((Date.now() - tA) / 1000).toFixed(0)}s`);
@@ -199,39 +198,62 @@ async function main() {
       EH.cmd({ t: 'place', id: 'trap_spikes', x: h.x, y: h.y + 1 + R + 1 });
       EH.cmd({ t: 'place', id: 'trap_tar', x: h.x + 1, y: h.y + 1 + R + 1 });
       EH.app.build.exit();
-      EH.goto('night', { night: 3 });
+      EH.goto('night', { night: 4 });
     });
     await waitFor('night', () => window.__EH.state().phase === 'night');
-    await ev(() => window.__EH.speed(3));
+    // pinch-zoom out one integer step (n-1, SPEC §3) to frame the fort and the dark beyond it
+    await ev(() => { const s = window.__EH.state(); const h = s.buildings.find((b) => b.uid === s.hearthUid); window.__EH.app.zoomIdx = 0; window.__EH.camTo(h.x + 1, h.y + 1.5); window.__EH.speed(3); });
+    // wait until the fight is on screen: towers firing, damage numbers up, Gloom in the dark showing only eyes
+    const view = (thr) => {
+      const EH = window.__EH, s = EH.state(), a = EH.app;
+      // frame the fort edge facing the nearest Gloom still in the dark
+      const h = s.buildings.find((b) => b.uid === s.hearthUid), hx = h.x + 1, hy = h.y + 1;
+      let near = null, nd = 1e9;
+      for (const e of s.enemies) { const d = Math.hypot(e.x - hx, e.y - hy); if (e.status.veiled && d < nd) { nd = d; near = e; } }
+      if (near && nd < 16) EH.camTo(hx + (near.x - hx) * 0.6, hy + (near.y - hy) * 0.6);
+      const c = a.camRect();
+      const on = (e) => e.x * 16 > c.x + 8 && e.x * 16 < c.x + c.w - 8 && e.y * 16 > c.y + 100 && e.y * 16 < c.y + c.h - 50;
+      const v = { proj: s.projectiles.filter(on).length, veiled: s.enemies.filter((e) => e.status.veiled && on(e)).length,
+        lit: s.enemies.filter((e) => !e.status.veiled && on(e)).length, nums: a.fx.nums.length, phase: s.phase };
+      // freeze the sim on the first frame that shows the whole fight (rendering + FX keep running)
+      v.score = Math.min(v.lit, 6) + Math.min(v.veiled, 4) + Math.min(v.proj, 3);
+      v.ok = v.proj > 0 && v.nums > 0 && v.veiled >= 1 && v.lit >= 1 && v.score >= thr;
+      if (v.ok) EH.speed(0);
+      return v;
+    };
     let best = null;
     const tN = Date.now();
-    while (Date.now() - tN < 45000) {
-      s = await S();
-      if (s.phase !== 'night') break;
-      const score = (s.projectiles > 0) + (s.veiled > 0) + (s.enemies > 8);
-      if (score === 3) { await ev(() => window.__EH.speed(1)); await sleep(500); best = await S(); break; }
-      await sleep(250);
+    while (Date.now() - tN < 60000) {
+      const v = await ev(view, Math.max(6, 12 - Math.floor((Date.now() - tN) / 8000)));
+      if (v.phase !== 'night') break;
+      if (v.ok) { best = v; break; }
+      await ev((k) => window.__EH.speed(k), v.veiled + v.lit > 0 ? 1 : 3);
+      await sleep(v.veiled + v.lit > 0 ? 30 : 200);
     }
+    if (best) await shot('night-defense');
     await ev(() => window.__EH.speed(1));
-    check('night with shooting towers + veiled enemies', best, best ? `enemies=${best.enemies} veiled=${best.veiled} proj=${best.projectiles}` : 'conditions not met');
-    await shot('night-defense');
+    check('night: towers firing, damage numbers, veiled eyes on screen', best, best ? JSON.stringify(best) : 'conditions not met in 60s');
+    if (!best) await shot('night-defense');
 
     // ── 8. Boss night ───────────────────────────────────────────────────────
-    await ev(() => { window.__EH.goto('night', { night: 5 }); window.__EH.speed(2); });
+    await ev(() => { window.__EH.goto('night', { night: 5 }); window.__EH.speed(4); });
     await waitFor('boss spawned', () => !!window.__EH.state().boss, undefined, 60000);
-    await ev(() => window.__EH.speed(1));
-    await waitFor('boss on screen', () => {
-      const EH = window.__EH, s = EH.state(); const b = s.enemies.find((e) => e.uid === s.boss.uid);
-      if (!b) return false; EH.app.cam.x = b.x * 16; EH.app.cam.y = b.y * 16 - 10; EH.app.build.freeCam = false; return true;
+    // let Mossback walk into the light around the fort, then frame it with the fort
+    await waitFor('boss near the fort', () => {
+      const EH = window.__EH, s = EH.state(); const b = s.enemies.find((e) => e.uid === s.boss?.uid);
+      const h = s.buildings.find((q) => q.uid === s.hearthUid);
+      return b && !b.status.veiled && Math.hypot(b.x - h.x - 1, b.y - h.y - 1) < 10.5;
+    }, undefined, 90000, 50);
+    await ev(() => {
+      const EH = window.__EH, s = EH.state(); const b = s.enemies.find((e) => e.uid === s.boss.uid); const h = s.buildings.find((q) => q.uid === s.hearthUid);
+      EH.speed(1); EH.camTo((b.x + h.x + 1) / 2, (b.y + h.y + 1) / 2);
     });
-    await ev(() => { const EH = window.__EH; EH.app.autoplay.on = false; EH.app.paused = false; });
-    await sleep(1800);
-    await ev(() => { const EH = window.__EH, s = EH.state(); const b = s.enemies.find((e) => e.uid === s.boss.uid); if (b) { EH.app.cam.x = b.x * 16; EH.app.cam.y = b.y * 16 - 10; } });
+    await sleep(1200);
     check('boss night: boss present with health bar', !!(await S()).boss);
     await shot('boss');
 
     // ── 9. Dawn boons ───────────────────────────────────────────────────────
-    await ev(() => window.__EH.goto('dawn', { night: 3 }));
+    await ev(() => { window.__EH.camTo(null); window.__EH.app.zoomIdx = 1; window.__EH.goto('dawn', { night: 3 }); });
     await waitFor('boon offer', () => (window.__EH.state().boonOffer || []).length > 0);
     await sleep(500);
     await shot('dawn-boons');

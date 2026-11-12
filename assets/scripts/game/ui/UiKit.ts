@@ -89,6 +89,11 @@ export class Button {
     if (!this.label) this.label = new BitmapText(this.node, { ax: 0.5, ay: 0.5, align: 'center', color: PAL.w, shadow: false });
     this.label.set(t, color); this.place(); return this;
   }
+  /** Width needed to show icon + label with padding. */
+  contentWidth(): number {
+    const iw = this.icon && this.icon.shown ? this.icon.w : 0, tw = this.label ? this.label.width : 0;
+    return iw + tw + (iw && tw ? 3 : 0) + 14;
+  }
   setEnabled(v: boolean): this { if (v !== this.enabled) { this.enabled = v; this.refresh(); } return this; }
   setSelected(v: boolean): this { if (v !== this.selected) { this.selected = v; this.refresh(); } return this; }
   show(v: boolean): this { if (this.node.active !== v) this.node.active = v; return this; }

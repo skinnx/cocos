@@ -62,7 +62,8 @@ export class UI {
     if (iw <= 0 || ih <= 0) return;
     const ff = A.frames[`ui_${fill}`];
     if (!ff) { A.get(`ui_${fill}`); return; }
-    if (iw >= 3 && ih >= 2) A.nine(this.ctx, `ui_${fill}`, x + L, y + T, iw, ih);
-    else this.ctx.drawImage(A.img!, ff.x + 1, ff.y + Math.floor(ff.h / 2), 1, 1, x + L, y + T, iw, ih);
+    const [fl, ft, fr2, fb] = ff.slice ?? [1, 1, 1, 1];
+    if (iw >= fl + fr2 + 1 && ih >= ft + fb + 2) A.nine(this.ctx, `ui_${fill}`, x + L, y + T, iw, ih);
+    else this.ctx.drawImage(A.img!, ff.x + fl, ff.y + ft, 1, Math.max(1, ff.h - ft - fb), x + L, y + T, iw, ih); // thin bar: body colour only
   }
 }

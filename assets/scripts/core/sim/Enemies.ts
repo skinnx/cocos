@@ -26,10 +26,10 @@ export function spawnEnemy(w: World, id: EnemyId, x: number, y: number, o: Spawn
   const e: EnemyX = {
     uid: newUid(w), id, x, y, px: x, py: y, facing: 1, hp, maxHp: hp, anim: 'move', animT: 0,
     status: { burn: 0, slow: 0, stun: 0, veiled: false }, elite, flying: !!(d.tags & TAG_FLYING), targetUid: 0,
-    spd: d.speed, dmg: d.dmg * (elite ? E.dmgMul : 1), rate: d.rate, range: d.range, radius: d.radius * (elite ? E.scale : 1), tags: d.tags,
+    spd: d.speed, dmg: d.dmg * (elite ? E.dmgMul : 1), rate: d.rate, range: d.range, radius: Math.min(0.36, d.radius * (elite ? E.scale : 1)), tags: d.tags,
     atkCd: 0.3, wave: o.wave ?? !o.guard, guard: o.guard ?? 0, hx: x, hy: y, mode: o.guard ? EMODE.idle : EMODE.path,
     burnDps: 0, slowAmt: 0, slowT: 0, frostT: 0, snuffT: 0, lastCell: -1, gold: 0, xp: 0,
-    t1: 0, t2: 0, t3: 0, flags: 0, shell: 0, dead: false, scale: elite ? E.scale : 1, vx: 0, vy: 0, dotFire: 0, dotFrost: 0,
+    t1: 0, t2: 0, t3: 0, flags: 0, shell: 0, dead: false, scale: elite ? E.scale : 1, vx: 0, vy: 0, dotFire: 0, dotFrost: 0, stuckT: 0,
   };
   if (id === 'mossback') { e.t1 = MOSSBACK.shellEvery; }
   if (id === 'unlit') { e.t1 = UNLIT.pulseEvery * 0.5; e.t2 = UNLIT.summonEvery; }
@@ -67,6 +67,7 @@ function inSanctum(w: World, x: number, y: number): boolean {
 function enemyDmg(w: World, e: EnemyX): number {
   let d = e.dmg;
   if (inSanctum(w, e.x, e.y)) d *= 0.8;
+  if (w.r.enraged && e.wave) d *= BALANCE.night.enrageDmgMul;
   return d;
 }
 
@@ -133,9 +134,7 @@ function attackReady(e: EnemyX, dt: number): boolean {
 }
 
 function bldDamage(w: World, e: EnemyX): number {
-  let d = enemyDmg(w, e) * ENEMIES[e.id].bldMul;
-  if (w.r.enraged && e.wave) d *= BALANCE.night.enrageDmgMul;
-  return d;
+  return enemyDmg(w, e) * ENEMIES[e.id].bldMul;
 }
 
 function hitBuilding(w: World, e: EnemyX, b: BuildingX): void {
@@ -207,14 +206,14 @@ function moveToward(w: World, e: EnemyX, tx: number, ty: number, dt: number, sto
   const dx = tx - e.x, dy = ty - e.y, d = Math.hypot(dx, dy);
   const sp = speedOf(w, e);
   const sep = { x: 0, y: 0 };
-  separation(w, e, sep);
-  let vx = 0, vy = 0;
-  if (d > stopDist + 0.02) { vx = (dx / d) * sp; vy = (dy / d) * sp; if (e.anim !== 'move' && e.animT > 0.25) { e.anim = 'move'; e.animT = 0; } }
+  if (e.stuckT < 0.5) separation(w, e, sep); // a snagged unit ignores the crowd until it is free
+  let vx = 0, vy = 0, wx = 0, wy = 0;
+  if (d > stopDist + 0.02) { vx = wx = (dx / d) * sp; vy = wy = (dy / d) * sp; if (e.anim !== 'move' && e.animT > 0.25) { e.anim = 'move'; e.animT = 0; } }
   vx += sep.x * sp * 0.6; vy += sep.y * sp * 0.6;
   e.vx = vx; e.vy = vy;
   if (Math.abs(vx) > 0.05) e.facing = vx > 0 ? 1 : -1;
   if (e.flying) { e.x += vx * dt; e.y += vy * dt; clampMap(w, e); }
-  else moveUnit(w, e, vx * dt, vy * dt, e.radius, false);
+  else if (!moveUnit(w, e, vx * dt, vy * dt, e.radius, false) && (wx || wy)) moveUnit(w, e, wx * dt, wy * dt, e.radius, false); // crowd jam: ignore separation
 }
 
 function chaseFoe(w: World, e: EnemyX, f: Foe, dt: number): void {
@@ -310,12 +309,12 @@ function ground(w: World, e: EnemyX, dt: number): void {
     }
   }
   e.mode = EMODE.path; e.snuffT = 0;
-  const tx = (nx % n) + 0.5, ty = Math.floor(nx / n) + 0.5;
-  // look one cell further for smoother motion when the next cell is free
-  const nn = field.next[nx];
-  let gx = tx, gy = ty;
-  if (nn >= 0 && !w.bldAt[nn] && Math.hypot(e.x - tx, e.y - ty) < 0.7) { gx = (nn % n) + 0.5; gy = Math.floor(nn / n) + 0.5; }
-  moveToward(w, e, gx, gy, dt);
+  let tx = (nx % n) + 0.5, ty = Math.floor(nx / n) + 0.5;
+  // corner snag: if we barely moved last step, re-centre on our own cell first
+  if (e.stuckT > 0.5) { tx = (cell % n) + 0.5; ty = Math.floor(cell / n) + 0.5; if (Math.hypot(e.x - tx, e.y - ty) < 0.1) e.stuckT = 0; }
+  const ox = e.x, oy = e.y;
+  moveToward(w, e, tx, ty, dt);
+  if (Math.hypot(e.x - ox, e.y - oy) < speedOf(w, e) * dt * 0.25) e.stuckT += dt; else if (e.stuckT <= 0.5) e.stuckT = 0;
 }
 
 function explode(w: World, e: EnemyX): void {
@@ -379,8 +378,8 @@ function mossback(w: World, e: EnemyX, dt: number): void {
   const sp = speedOf(w, e);
   const nx = d > 0.01 ? e.x + (dx / d) * sp * dt : e.x, ny = d > 0.01 ? e.y + (dy / d) * sp * dt : e.y;
   const touching: BuildingX[] = [];
-  for (const b of w.s.buildings as BuildingX[]) if (!isTrap(b.id) && !b.dead && distToRect(nx, ny, b) < e.radius) touching.push(b);
-  if (distToRect(nx, ny, hearthRect) < e.radius && !touching.includes(w.hearth)) touching.push(w.hearth);
+  for (const b of w.s.buildings as BuildingX[]) if (!isTrap(b.id) && !b.dead && distToRect(nx, ny, b) < ENEMIES.mossback.radius) touching.push(b);
+  if (distToRect(nx, ny, hearthRect) < ENEMIES.mossback.radius && !touching.includes(w.hearth)) touching.push(w.hearth);
   if (touching.length) {
     e.vx = 0; e.vy = 0;
     e.t3 += dt;

@@ -35,14 +35,14 @@ class Heap {
 
 export class FlowField {
   readonly size: number;
-  dist: Float32Array;
+  dist: Float64Array;
   next: Int32Array;      // next cell index toward the goal (-1 = none / goal)
   valid = false;
   private heap = new Heap();
   private done: Uint8Array;
   constructor(size: number) {
     this.size = size;
-    this.dist = new Float32Array(size * size).fill(Infinity);
+    this.dist = new Float64Array(size * size).fill(Infinity);
     this.next = new Int32Array(size * size).fill(-1);
     this.done = new Uint8Array(size * size);
   }

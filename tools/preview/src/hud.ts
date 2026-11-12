@@ -201,7 +201,7 @@ function drawMinimap(app: App, right: number, top: number) {
 function edgeArrows(app: App) {
   const s = app.state!; const g = app.b;
   const { W, H, safe } = app;
-  const box = { x: safe.l + 10, y: safe.t + 60, w: W - safe.l - safe.r - 20, h: H - safe.t - safe.b - 110 };
+  const box = { x: safe.l + 12, y: safe.t + 104, w: W - safe.l - safe.r - 24, h: H - safe.t - safe.b - 104 - 52 };
   const targets: Array<{ tx: number; ty: number; icon?: string; pulse: boolean }> = [];
   const hearth = s.buildings.find((b) => b.uid === s.hearthUid);
   if (hearth) targets.push({ tx: hearth.x + 1, ty: hearth.y + 1, icon: 'icon_fire', pulse: false });

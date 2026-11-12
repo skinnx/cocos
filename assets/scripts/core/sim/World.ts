@@ -26,6 +26,7 @@ export interface EnemyX extends EnemyState {
   dead: boolean;
   scale: number;            // render scale (elite 1.25)
   vx: number; vy: number;   // last velocity (mortar prediction)
+  stuckT: number;
   dotFire: number; dotFrost: number; // accumulated damage-over-time, applied every 0.5 s
 }
 
@@ -38,6 +39,7 @@ export interface HeroX extends HeroState {
   relightT: number;
   combatT: number;          // seconds since last combat
   twinT: number;            // pending second cast (twin boon), -1 none
+  stuckT: number;
   dead: boolean;
   tgt: number;
 }

@@ -7,7 +7,7 @@ import { BUILDINGS } from '../data/buildings';
 import { SKILLS } from '../data/heroes';
 import { TALENT_BY_ID } from '../data/talents';
 import { isRockKind, isTreeKind } from './MapGen';
-import { brazierBurning } from './Light';
+import { brazierBurning, computeStaticLight } from './Light';
 import { removeBuildingNow } from './Combat';
 import {
   type World, type BuildingX, type HeroX, emit, newUid, canAfford, payRes, boonStacks, isTower, isTrap, isWallLike,
@@ -17,7 +17,7 @@ import {
 const ZERO: Resources = { wood: 0, stone: 0, gold: 0 };
 
 function scaleRes(r: Resources, m: number): Resources {
-  return { wood: Math.ceil(r.wood * m - 1e-9), stone: Math.ceil(r.stone * m - 1e-9), gold: Math.ceil(r.gold * m - 1e-9) };
+  return { wood: Math.ceil(r.wood * m - 1e-9) + 0, stone: Math.ceil(r.stone * m - 1e-9) + 0, gold: Math.ceil(r.gold * m - 1e-9) + 0 };
 }
 
 function tinkerInSquad(w: World): boolean { return (w.s.heroes as HeroX[]).some((h) => h.id === 'tinker'); }
@@ -64,6 +64,7 @@ export function countNear(w: World, rect: { x: number; y: number; w: number; h: 
 export function canPlace(w: World, id: BuildingId, x: number, y: number, extraCost: Resources = ZERO): BuildCheck {
   const d = BUILDINGS[id];
   const cost = buildingCost(w, id, 1);
+  if (w.lightDirty) computeStaticLight(w);
   if (id === 'hearth') return { ok: false, reason: 'blocked', cost };
   if (d.should && !w.meta.unlockedBlueprints.includes(id)) return { ok: false, reason: 'locked', cost };
   if (w.s.phase === 'victory' || w.s.phase === 'defeat') return { ok: false, reason: 'blocked', cost };

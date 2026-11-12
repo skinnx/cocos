@@ -23,8 +23,9 @@ function hash2(x: number, y: number): number {
   return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
 }
 
-/** Bilinear sample of the per-tile alpha at a tile-space point (tile centres at +0.5). */
-export function sampleAlpha(inp: LightInput, tx: number, ty: number): number {
+/** Bilinear sample of the per-tile alpha at a tile-space point (tile centres at +0.5); `stepped` snaps it to the
+ * nearest surrounding tile level. */
+export function sampleAlpha(inp: LightInput, tx: number, ty: number, stepped = false): number {
   const n = inp.size;
   const fx = tx - 0.5, fy = ty - 0.5;
   const x0 = Math.floor(fx), y0 = Math.floor(fy);
@@ -34,18 +35,29 @@ export function sampleAlpha(inp: LightInput, tx: number, ty: number): number {
     const i = y * n + x;
     return inp.explored[i] ? inp.lightAlpha[i] : FOG_ALPHA;
   };
-  const a = get(x0, y0) * (1 - ux) + get(x0 + 1, y0) * ux;
-  const b = get(x0, y0 + 1) * (1 - ux) + get(x0 + 1, y0 + 1) * ux;
-  return a * (1 - uy) + b * uy;
+  const c00 = get(x0, y0), c10 = get(x0 + 1, y0), c01 = get(x0, y0 + 1), c11 = get(x0 + 1, y0 + 1);
+  const a = c00 * (1 - ux) + c10 * ux;
+  const b = c01 * (1 - ux) + c11 * ux;
+  const v = a * (1 - uy) + b * uy;
+  if (!stepped) return v;
+  // snap to the nearest of the surrounding tile levels → discrete alpha levels with texel-sized stair-step edges
+  let best = c00;
+  for (const c of [c10, c01, c11]) if (Math.abs(c - v) < Math.abs(best - v)) best = c;
+  return best;
 }
 
-/** Fill an RGBA8 buffer of (size*4)² texels (row 0 = north). */
-export function fillLight(buf: Uint8Array, inp: LightInput): void {
+/**
+ * Fill an RGBA8 buffer of (size*4)² texels (row 0 = north). `region` (tiles, inclusive) limits the work to the
+ * visible part of the map; texels outside it keep their previous values.
+ */
+export function fillLight(buf: Uint8Array, inp: LightInput, region?: { x0: number; y0: number; x1: number; y1: number }): void {
   const n = inp.size, T = TEXELS_PER_TILE, W = n * T;
+  const tx0 = region ? Math.max(0, region.x0 * T) : 0, tx1 = region ? Math.min(W - 1, (region.x1 + 1) * T - 1) : W - 1;
+  const ty0 = region ? Math.max(0, region.y0 * T) : 0, ty1 = region ? Math.min(W - 1, (region.y1 + 1) * T - 1) : W - 1;
   // global flicker phase: two sines + a slow noise term, amplitude ±0.25 tile
   const fl = (u: number, v: number) => 0.25 * (0.6 * Math.sin(inp.t * 6.1 + u * 0.9) + 0.4 * Math.sin(inp.t * 9.7 + v * 1.3 + hash2(u | 0, v | 0)));
-  for (let ty = 0; ty < W; ty++) {
-    for (let tx = 0; tx < W; tx++) {
+  for (let ty = ty0; ty <= ty1; ty++) {
+    for (let tx = tx0; tx <= tx1; tx++) {
       const o = (ty * W + tx) * 4;
       const cx = (tx + 0.5) / T, cy = (ty + 0.5) / T;
       const ti = Math.floor(cy) * n + Math.floor(cx);
@@ -53,7 +65,7 @@ export function fillLight(buf: Uint8Array, inp: LightInput): void {
       if (!inp.explored[ti]) a = FOG_ALPHA;
       else {
         const j = inp.night ? fl(cx, cy) : 0;
-        a = sampleAlpha(inp, cx + j, cy - j * 0.5);
+        a = sampleAlpha(inp, cx + j, cy - j * 0.5, true);
       }
       if (inp.night && a < WARM_ALPHA && inp.explored[ti]) {
         buf[o] = WARM_RGB[0]; buf[o + 1] = WARM_RGB[1]; buf[o + 2] = WARM_RGB[2]; buf[o + 3] = Math.round(WARM_ALPHA * 255);

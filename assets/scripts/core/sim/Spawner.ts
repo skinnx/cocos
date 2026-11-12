@@ -121,7 +121,7 @@ export function updateSpawner(w: World): void {
     const boss = ENEMIES[sp.enemy].boss;
     if (!boss && w.s.enemies.length >= BALANCE.caps.enemies) break; // wait for room
     const jx = w.rng.range(-0.8, 0.8), jy = w.rng.range(-0.8, 0.8);
-    spawnEnemy(w, sp.enemy, rf.x + 0.5 + jx, rf.y + 0.5 + jy, { elite: sp.elite, wave: true });
+    spawnEnemy(w, sp.enemy, rf.x + 0.5 + jx, rf.y + 0.5 + jy, { elite: sp.elite, wave: true, hpMul: boss ? 1 : BALANCE.night.hpScale(w.s.night) });
     w.r.spawnIdx++;
   }
   let alive = 0;

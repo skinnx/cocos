@@ -43,7 +43,7 @@ export function bfs(s: GameState, grid: Uint8Array, sx: number, sy: number, goal
   return null;
 }
 
-export interface Walker { path: number[]; key: string; age: number }
+export interface Walker { path: number[]; key: string; age: number; lx?: number; ly?: number; still?: number; recenter?: boolean }
 
 export function leaderOf(s: GameState) { return s.heroes.find((h) => h.leader && h.anim !== 'down' && h.hp > 0) ?? null; }
 
@@ -64,6 +64,15 @@ export function walkTo(game: Game, wk: Walker, key: string, goal: (x: number, y:
   while (wk.path.length && wk.path[0] === cy * n + cx) wk.path.shift();
   // skip waypoints we are already close to
   if (!wk.path.length) { game.cmd({ t: 'move', dir: { x: 0, y: 0 } }); return goal(cx, cy); }
+  // corner snag: no progress for 0.4 s → re-centre on the current cell, then continue
+  if (wk.lx !== undefined && Math.hypot(ld.x - wk.lx, ld.y - (wk.ly ?? 0)) < 0.01) wk.still = (wk.still ?? 0) + 1; else wk.still = 0;
+  wk.lx = ld.x; wk.ly = ld.y;
+  if ((wk.still ?? 0) > 12) { wk.recenter = true; wk.still = 0; }
+  if (wk.recenter) {
+    const rx = cx + 0.5 - ld.x, ry = cy + 0.5 - ld.y, rd = Math.hypot(rx, ry);
+    if (rd < 0.08) wk.recenter = false;
+    else { game.cmd({ t: 'move', dir: { x: rx / rd, y: ry / rd } }); return false; }
+  }
   const c = wk.path[0];
   const tx = (c % n) + 0.5, ty = ((c / n) | 0) + 0.5;
   const dx = tx - ld.x, dy = ty - ld.y, d = Math.hypot(dx, dy);

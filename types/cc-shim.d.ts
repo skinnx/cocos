@@ -1,36 +1,28 @@
 // Hand-written subset of the Cocos Creator 3.8 / COCOS 4 runtime API (module 'cc').
 // ONLY the members the Emberhold view layer (assets/scripts/game/**) uses are declared, with signatures copied
-// from the public engine typings. Delete the `paths` mapping in tsconfig.game.json to typecheck against the real
+// from the public engine typings (cocos/core/math, cocos/asset/assets, cocos/scene-graph, cocos/2d, cocos/audio,
+// cocos/input, cocos/game, pal/screen-adapter, cocos/core/platform/sys). Enums list their real member names; values
+// come from the engine at runtime. Delete the `paths` mapping in tsconfig.game.json to typecheck against the real
 // engine declarations once the Cocos CLI/engine is installed (docs/CONTRACT.md).
 declare module 'cc' {
   export type Constructor<T = unknown> = new (...args: any[]) => T;
 
   // ── math ─────────────────────────────────────────────────────────────────────
   export class Vec2 {
-    static ZERO: Readonly<Vec2>;
     x: number; y: number;
     constructor(x?: number, y?: number);
-    set(x?: number, y?: number): Vec2;
   }
   export class Vec3 {
-    static ZERO: Readonly<Vec3>;
-    static ONE: Readonly<Vec3>;
     x: number; y: number; z: number;
-    constructor(x?: number, y?: number, z?: number);
-    set(x?: number, y?: number, z?: number): Vec3;
   }
   export class Color {
-    static WHITE: Readonly<Color>;
-    static BLACK: Readonly<Color>;
     r: number; g: number; b: number; a: number;
     constructor(r?: number, g?: number, b?: number, a?: number);
-    constructor(hexString: string);
     set(r?: number, g?: number, b?: number, a?: number): Color;
   }
   export class Rect {
     x: number; y: number; width: number; height: number;
     constructor(x?: number, y?: number, width?: number, height?: number);
-    contains(point: Vec2): boolean;
   }
   export class Size {
     width: number; height: number;
@@ -38,25 +30,17 @@ declare module 'cc' {
   }
 
   // ── assets ───────────────────────────────────────────────────────────────────
-  export class Asset {
-    name: string;
-    addRef(): Asset;
-    decRef(autoRelease?: boolean): Asset;
-  }
+  export class Asset {}
   export class ImageAsset extends Asset {
     get data(): ArrayBufferView | HTMLCanvasElement | HTMLImageElement | ImageBitmap | null;
-    get width(): number;
-    get height(): number;
   }
   enum TexFilter { NONE, LINEAR, NEAREST }
-  enum TexWrapMode { REPEAT, CLAMP_TO_EDGE, MIRRORED_REPEAT }
-  enum TexPixelFormat { RGB888, RGBA8888 }
+  enum TexWrapMode { REPEAT, CLAMP_TO_EDGE, MIRRORED_REPEAT, CLAMP_TO_BORDER }
+  enum TexPixelFormat { RGB565, RGB5A1, RGBA4444, RGB888, RGB32F, RGBA8888, RGBA32F, A8, I8, AI8 }
   export class TextureBase extends Asset {
     static Filter: typeof TexFilter;
     static WrapMode: typeof TexWrapMode;
     static PixelFormat: typeof TexPixelFormat;
-    get width(): number;
-    get height(): number;
     setFilters(minFilter: TexFilter, magFilter: TexFilter): void;
     setMipFilter(mipFilter: TexFilter): void;
     setWrapMode(wrapS: TexWrapMode, wrapT: TexWrapMode, wrapR?: TexWrapMode): void;
@@ -77,25 +61,12 @@ declare module 'cc' {
     borderTop?: number; borderBottom?: number; borderLeft?: number; borderRight?: number; isFlipUv?: boolean;
   }
   export class SpriteFrame extends Asset {
-    get texture(): TextureBase;
-    set texture(value: TextureBase);
-    get rect(): Rect;
-    set rect(value: Rect);
-    get originalSize(): Size;
-    set originalSize(value: Size);
-    get offset(): Vec2;
-    set offset(value: Vec2);
-    get width(): number;
-    get height(): number;
-    insetTop: number; insetBottom: number; insetLeft: number; insetRight: number;
     reset(info?: ISpriteFrameInitInfo, clearData?: boolean): void;
   }
   export class JsonAsset extends Asset {
     json: Record<string, any> | null;
   }
-  export class AudioClip extends Asset {
-    getDuration(): number;
-  }
+  export class AudioClip extends Asset {}
   export namespace AssetManager {
     class Bundle {
       load<T extends Asset>(paths: string, type: Constructor<T> | null, onComplete?: ((err: Error | null, data: T) => void) | null): void;
@@ -113,35 +84,23 @@ declare module 'cc' {
   }
   export class Node {
     constructor(name?: string);
-    name: string;
-    get isValid(): boolean;
     get parent(): Node | null;
-    set parent(value: Node | null);
-    get children(): Node[];
     get active(): boolean;
     set active(isActive: boolean);
     get activeInHierarchy(): boolean;
     get layer(): number;
     set layer(l: number);
     get position(): Readonly<Vec3>;
-    set position(val: Readonly<Vec3>);
     get scale(): Readonly<Vec3>;
-    set scale(val: Readonly<Vec3>);
     get angle(): number;
     set angle(val: number);
-    setPosition(position: Readonly<Vec3>): void;
     setPosition(x: number, y: number, z?: number): void;
-    setScale(scale: Readonly<Vec3>): void;
     setScale(x: number, y: number, z?: number): void;
     addChild(child: Node): void;
-    removeChild(child: Node): void;
-    removeFromParent(): void;
     setParent(value: Node | null, keepWorldTransform?: boolean): void;
     getChildByName(name: string): Node | null;
     setSiblingIndex(index: number): void;
-    getSiblingIndex(): number;
     destroy(): boolean;
-    destroyAllChildren(): void;
     addComponent<T extends Component>(classConstructor: Constructor<T>): T;
     getComponent<T extends Component>(classConstructor: Constructor<T>): T | null;
   }
@@ -149,17 +108,8 @@ declare module 'cc' {
 
   export class Component {
     get node(): Node;
-    get enabled(): boolean;
-    set enabled(value: boolean);
-    get isValid(): boolean;
-    getComponent<T extends Component>(classConstructor: Constructor<T>): T | null;
-    addComponent<T extends Component>(classConstructor: Constructor<T>): T;
     protected onLoad?(): void;
-    protected start?(): void;
     protected update?(dt: number): void;
-    protected lateUpdate?(dt: number): void;
-    protected onEnable?(): void;
-    protected onDisable?(): void;
     protected onDestroy?(): void;
   }
 
@@ -169,17 +119,6 @@ declare module 'cc' {
 
   // ── 2D rendering ─────────────────────────────────────────────────────────────
   export class UITransform extends Component {
-    get contentSize(): Readonly<Size>;
-    set contentSize(value: Readonly<Size>);
-    get width(): number;
-    set width(value: number);
-    get height(): number;
-    set height(value: number);
-    get anchorX(): number;
-    set anchorX(value: number);
-    get anchorY(): number;
-    set anchorY(value: number);
-    setContentSize(size: Size): void;
     setContentSize(width: number, height: number): void;
     setAnchorPoint(point: Vec2 | Readonly<Vec2> | number, y?: number): void;
   }
@@ -210,10 +149,6 @@ declare module 'cc' {
     enum SizeMode { CUSTOM, TRIMMED, RAW }
     enum FillType { HORIZONTAL, VERTICAL, RADIAL }
   }
-  export class UIOpacity extends Component {
-    get opacity(): number;
-    set opacity(value: number);
-  }
 
   // ── audio ────────────────────────────────────────────────────────────────────
   export class AudioSource extends Component {
@@ -225,11 +160,8 @@ declare module 'cc' {
     set playOnAwake(val: boolean);
     get volume(): number;
     set volume(val: number);
-    get playing(): boolean;
     play(): void;
-    pause(): void;
     stop(): void;
-    playOneShot(clip: AudioClip, volumeScale?: number): void;
   }
 
   // ── director / platform ──────────────────────────────────────────────────────
@@ -241,31 +173,21 @@ declare module 'cc' {
   export const director: Director;
 
   export class ResolutionPolicy {
-    static EXACT_FIT: number;
-    static NO_BORDER: number;
-    static SHOW_ALL: number;
-    static FIXED_HEIGHT: number;
     static FIXED_WIDTH: number;
   }
   export class View {
     setDesignResolutionSize(width: number, height: number, resolutionPolicy: ResolutionPolicy | number): void;
-    getDesignResolutionSize(): Size;
     getVisibleSize(): Size;
-    getVisibleOrigin(): Vec2;
   }
   export const view: View;
 
   export const screen: {
     get windowSize(): Size;
-    get devicePixelRatio(): number;
   };
 
   export const sys: {
     localStorage: Storage;
-    isBrowser: boolean;
-    isMobile: boolean;
     getSafeAreaRect(): Rect;
-    now(): number;
   };
 
   // ── input ────────────────────────────────────────────────────────────────────
@@ -273,19 +195,14 @@ declare module 'cc' {
     getID(): number;
     getUILocation(out?: Vec2): Vec2;
   }
-  export class Event {
-    type: string;
-  }
+  export class Event {}
   export class EventTouch extends Event {
-    touch: Touch | null;
     getID(): number | null;
     getUILocation(out?: Vec2): Vec2;
     getTouches(): Touch[];
-    getAllTouches(): Touch[];
   }
   export class EventMouse extends Event {
     static BUTTON_LEFT: number;
-    static BUTTON_RIGHT: number;
     getButton(): number;
     getUILocation(out?: Vec2): Vec2;
     getScrollY(): number;

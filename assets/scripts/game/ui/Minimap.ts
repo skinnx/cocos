@@ -1,7 +1,7 @@
 // Minimap (SPEC §10.2): 56×56 RGBA texture (1 texel per tile) refreshed ~5×/s with uploadData — island, light
 // territory, buildings, active rifts, heroes, enemies at night — framed with ui_minimap_frame. Tap to enlarge,
 // tap again to shrink. A camera-view marker uses the pin icon.
-import { Sprite, SpriteFrame, UITransform, type Node, type Texture2D } from 'cc';
+import { Rect, Size, Sprite, SpriteFrame, UITransform, Vec2, type Node, type Texture2D } from 'cc';
 import type { GameState } from '../../core/api';
 import type { Ctx } from '../Ctx';
 import { fillMinimap, projectToMinimap } from '../logic/minimap';
@@ -64,7 +64,7 @@ export class Minimap {
       this.buf = new Uint8Array(n * n * 4);
       this.tex = makeTexture(n, n, this.buf);
       const sf = new SpriteFrame();
-      sf.texture = this.tex;
+      sf.reset({ texture: this.tex, rect: new Rect(0, 0, n, n), originalSize: new Size(n, n), offset: new Vec2(0, 0), isRotate: false });
       this.img.getComponent(Sprite)!.spriteFrame = sf;
       this.acc = 1;
     }

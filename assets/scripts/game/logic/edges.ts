@@ -61,16 +61,14 @@ export function edgeOverlays(x: number, y: number, at: (x: number, y: number) =>
       return m === up || (up === 'sand' && m === 'grass' && me === 'water');
     };
     const o = [isUp(0, -1), isUp(1, 0), isUp(0, 1), isUp(-1, 0)];
-    if (o[N]) out.push(`edge_${pair}_n`);
-    if (o[E]) out.push(`edge_${pair}_e`);
-    if (o[S]) out.push(`edge_${pair}_s`);
-    if (o[W]) out.push(`edge_${pair}_w`);
     const corners: Array<[string, number, number, number, number]> = [
       ['ne', N, E, 1, -1], ['se', S, E, 1, 1], ['sw', S, W, -1, 1], ['nw', N, W, -1, -1]];
-    for (const [c, a, b, dx, dy] of corners) {
-      if (o[a] && o[b]) out.push(`edge_${pair}_i${c}`);
-      else if (!o[a] && !o[b] && isUp(dx, dy)) out.push(`edge_${pair}_${c}`);
-    }
+    // inner corners replace the two edge bands they join (art convention, tools/art/sprites/tiles.mjs)
+    const covered = [false, false, false, false];
+    for (const [c, a, b] of corners) if (o[a] && o[b]) { out.push(`edge_${pair}_i${c}`); covered[a] = covered[b] = true; }
+    const sides = ['n', 'e', 's', 'w'];
+    for (let k = 0; k < 4; k++) if (o[k] && !covered[k]) out.push(`edge_${pair}_${sides[k]}`);
+    for (const [c, a, b, dx, dy] of corners) if (!o[a] && !o[b] && isUp(dx, dy)) out.push(`edge_${pair}_${c}`);
   }
   return out;
 }

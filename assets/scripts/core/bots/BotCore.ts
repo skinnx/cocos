@@ -103,7 +103,7 @@ function tryBuild(game: Game, bs: BotState, o: BotOpts): void {
   }
 }
 
-function needStone(s: GameState): boolean { return s.res.stone < 20 && s.res.wood > 60; }
+function needStone(s: GameState): boolean { return s.res.wood > 30 && s.res.stone * 3 < s.res.wood; }
 
 function harvestDay(game: Game, bs: BotState, o: BotOpts): void {
   const s = game.state;
@@ -121,6 +121,7 @@ function harvestDay(game: Game, bs: BotState, o: BotOpts): void {
   const wantStone = needStone(s);
   if (!node) {
     let best: GameState["nodes"][number] | null = null, bd = Infinity;
+    const guards = s.enemies.filter((e) => Math.hypot(e.x - C, e.y - C) > 7);
     for (const nd of s.nodes) {
       if (nd.hp <= 0 || nd.kind === 'stump' || nd.kind === 'bush') continue;
       const isTree = nd.kind === 'pine' || nd.kind === 'oak';
@@ -128,6 +129,7 @@ function harvestDay(game: Game, bs: BotState, o: BotOpts): void {
       if (!isTree && !isRock && nd.kind !== 'ore') continue;
       const dh = Math.hypot(nd.x + 0.5 - C, nd.y + 0.5 - C);
       if (dh > 16 || dh < 6.5) continue;
+      if (guards.some((e) => Math.hypot(e.x - nd.x - 0.5, e.y - nd.y - 0.5) < 3)) continue; // stay clear of Gloom camps
       let d = Math.hypot(nd.x + 0.5 - ld.x, nd.y + 0.5 - ld.y) + dh * 0.5;
       if (wantStone && isTree) d += 6;
       if (!wantStone && isRock) d += 4;
@@ -138,7 +140,11 @@ function harvestDay(game: Game, bs: BotState, o: BotOpts): void {
     node = best; bs.target = best.uid;
   }
   const nd = node;
-  walkTo(game, bs.wk, 'n' + nd.uid, (x, y) => Math.max(Math.abs(x - nd.x), Math.abs(y - nd.y)) === 1);
+  if (walkTo(game, bs.wk, 'n' + nd.uid, (x, y) => Math.abs(x - nd.x) + Math.abs(y - nd.y) === 1)) {
+    const cx = Math.max(nd.x, Math.min(ld.x, nd.x + 1)), cy = Math.max(nd.y, Math.min(ld.y, nd.y + 1));
+    const dx = cx - ld.x, dy = cy - ld.y, d = Math.hypot(dx, dy);
+    if (d > 0.6) game.cmd({ t: 'move', dir: { x: dx / d, y: dy / d } });
+  }
 }
 
 function nightMove(game: Game, bs: BotState, o: BotOpts): void {

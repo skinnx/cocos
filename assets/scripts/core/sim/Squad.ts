@@ -23,7 +23,7 @@ export function createHero(w: World, id: HeroId, x: number, y: number, level = 1
     uid: newUid(w), id, x, y, px: x, py: y, facing: 1, hp: 1, maxHp: 1, anim: 'idle', animT: 0,
     status: { burn: 0, slow: 0, stun: 0, veiled: false },
     level: 1, xp: 0, skillCd: 0, skillCdMax: 0, leader: false, reviveT: 0,
-    atkCd: 0, nextHitMul: 1, harvestCd: 0, relightT: 0, combatT: 99, twinT: -1, dead: false, tgt: 0,
+    atkCd: 0, nextHitMul: 1, harvestCd: 0, relightT: 0, combatT: 99, twinT: -1, dead: false, tgt: 0, stuckT: 0,
   };
   h.level = Math.min(5, Math.max(1, level));
   if (h.level > 1) h.xp = BALANCE.squad.xp[h.level - 2];
@@ -106,7 +106,11 @@ export function updateHeroes(w: World, dt: number): void {
     const dl = Math.hypot(h.x - ld.x, h.y - ld.y);
     if (dl > BALANCE.squad.teleportDist) { h.x = ld.x; h.y = ld.y; h.px = h.x; h.py = h.y; continue; }
     if (engageOrIdle(w, h, spd, dt, { sx, sy, ld })) continue;
+    const ox = h.x, oy = h.y;
     steerTo(w, h, sx, sy, spd * BALANCE.squad.followCatchup, dt, hs);
+    // regroup: a follower snagged behind walls/trees for 1.5 s rejoins the leader
+    if (Math.hypot(h.x - ox, h.y - oy) < spd * dt * 0.2 && Math.hypot(sx - h.x, sy - h.y) > 1.5) h.stuckT += dt; else h.stuckT = 0;
+    if (h.stuckT > 1.5) { h.stuckT = 0; h.x = ld.x; h.y = ld.y; h.px = h.x; h.py = h.y; emit(w, { t: 'teleport', uid: h.uid, x: h.x, y: h.y }); }
   }
   // ── attacks, skills, passives
   const rateMul = hornActive(w) ? BALANCE.horn.rateMul : 1;
@@ -329,7 +333,7 @@ function relightBraziers(w: World, dt: number): void {
 function harvest(w: World, h: HeroX, dt: number): void {
   h.harvestCd -= dt;
   if (h.harvestCd > 0) return;
-  if (anyEnemyNear(w, h.x, h.y, Math.max(HEROES[h.id].range, 2.5))) return;
+  if (anyEnemyNear(w, h.x, h.y, Math.max(HEROES[h.id].range + 0.4, 1.5))) return; // busy fighting
   const H = BALANCE.harvest;
   let best = -1, bd = Infinity;
   const cx = Math.floor(h.x), cy = Math.floor(h.y);

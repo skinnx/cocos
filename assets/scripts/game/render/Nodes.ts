@@ -23,6 +23,8 @@ export class SpriteHandle {
   private cr = 255; private cg = 255; private cb = 255; private ca = 255;
   private lx = NaN; private ly = NaN; private sx = 1; private sy = 1;
   private fw = 0; private fh = 0;
+  /** anchor override that survives frame changes (UI icons); null = use the atlas anchor */
+  private ovr: [number, number] | null = null;
 
   constructor(name: string, parent: Node | null, frame?: string) {
     this.node = mkNode(name, parent);
@@ -46,7 +48,7 @@ export class SpriteHandle {
     const sf = (flash ? a.flash(name) : null) ?? a.frame(name);
     this.sprite.spriteFrame = sf;
     if (r.w !== this.fw || r.h !== this.fh) { this.ut.setContentSize(r.w, r.h); this.fw = r.w; this.fh = r.h; }
-    this.ut.setAnchorPoint(r.anchorX, r.anchorY);
+    if (this.ovr) this.ut.setAnchorPoint(this.ovr[0], this.ovr[1]); else this.ut.setAnchorPoint(r.anchorX, r.anchorY);
     this.cur = name; this.flashing = flash && !!a.flash(name);
     return this;
   }
@@ -55,6 +57,7 @@ export class SpriteHandle {
   solid(w: number, h: number, ax = 0, ay = 0): this {
     if (this.cur !== '#solid') { this.sprite.spriteFrame = Atlas.inst.solid; this.cur = '#solid'; }
     if (w !== this.fw || h !== this.fh) { this.ut.setContentSize(w, h); this.fw = w; this.fh = h; }
+    this.ovr = [ax, ay];
     this.ut.setAnchorPoint(ax, ay);
     return this;
   }
@@ -64,7 +67,8 @@ export class SpriteHandle {
     if (w !== this.fw || h !== this.fh) { this.ut.setContentSize(w, h); this.fw = w; this.fh = h; }
     return this;
   }
-  anchor(ax: number, ay: number): this { this.ut.setAnchorPoint(ax, ay); return this; }
+  /** Pin a custom anchor (kept across later set() calls). */
+  anchor(ax: number, ay: number): this { this.ovr = [ax, ay]; this.ut.setAnchorPoint(ax, ay); return this; }
 
   pos(x: number, y: number): this {
     if (x !== this.lx || y !== this.ly) { this.node.setPosition(x, y, 0); this.lx = x; this.ly = y; }

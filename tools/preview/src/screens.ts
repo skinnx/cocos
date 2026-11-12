@@ -162,16 +162,19 @@ function boonPicker(app: App) {
   const dawn = s.boonSource !== 'chest';
   const pw = W - safe.l - safe.r - 12, px = safe.l + 6;
   const cardH = 54;
-  const headH = dawn ? 74 : 34;
-  const ph = headH + offer.length * (cardH + 4) + 8;
+  const headH = dawn ? 67 : 36;
+  const ph = headH + offer.length * (cardH + 4) + 4;
   const py = Math.max(safe.t + 6, Math.round(H / 2 - ph / 2));
   A.nine(g, 'ui_panel_stone', px, py, pw, ph);
   drawBig(app, (dawn ? app.tr('dawn.title') : app.tr('chest.title')).toUpperCase(), W / 2, py + 6, COL.gold);
   let y = py + 28;
   if (dawn) {
-    f.draw(g, app.tr('dawn.summary', { n: s.stats.nightsSurvived }), W / 2, y, { align: 'center', color: COL.white }); y += 11;
-    A.drawTL(g, 'icon_skull', px + 14, y - 4); f.draw(g, `${app.tr('dawn.kills')}: ${s.stats.kills}`, px + 32, y + 1, { color: COL.white });
-    A.drawTL(g, 'icon_gold', px + pw / 2 + 6, y - 4); f.draw(g, `${s.stats.goldEarned}`, px + pw / 2 + 24, y + 1, { color: COL.gold }); y += 16;
+    f.draw(g, app.tr('dawn.summary', { n: s.night }), W / 2, y, { align: 'center', color: COL.white }); y += 11;
+    const kills = `${s.stats.kills}`, gold = `${s.stats.goldEarned}`;
+    const rowW = 16 + 2 + f.width(kills) + 10 + 16 + 2 + f.width(gold);
+    let rx = Math.round(W / 2 - rowW / 2);
+    A.drawTL(g, 'icon_skull', rx, y - 4); rx += 18; f.draw(g, kills, rx, y + 1, { color: COL.white }); rx += f.width(kills) + 10;
+    A.drawTL(g, 'icon_gold', rx, y - 4); rx += 18; f.draw(g, gold, rx, y + 1, { color: COL.gold }); y += 16;
     f.draw(g, app.tr('dawn.choose'), W / 2, y, { align: 'center', color: COL.fire }); y += 12;
   } else { f.draw(g, app.tr('chest.choose'), W / 2, y - 2, { align: 'center', color: COL.fire }); y += 8; }
   offer.forEach((b, i) => {

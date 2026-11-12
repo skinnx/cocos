@@ -3,7 +3,7 @@
 export const BALANCE = {
   tile: 16, mapSize: 56, simHz: 30,
   day: { seconds: 75, firstDaySeconds: 60, callNightGoldPerSec: 0.5, buildTimeScale: 0.25 },
-  night: { enrageAfter: 120, enrageSpeedMul: 1.5, enrageDmgMul: 2, spawnWindow: (n: number) => Math.min(70, 35 + 4 * n), pulseMin: 6, pulseMax: 8 },
+  night: { hpScale: (n: number) => 1 + 0.4 * Math.max(0, n - 5), enrageAfter: 105, enrageSpeedMul: 1.5, enrageDmgMul: 3, spawnWindow: (n: number) => Math.min(70, 35 + 4 * n), pulseMin: 6, pulseMax: 8 },
   budget: (n: number) => 40 + 28 * n + 4 * n * n, bossBudgetMul: 0.6, endlessMul: 1.18,
   riftsActive: (n: number) => (n <= 2 ? 1 : n <= 5 ? 2 : n <= 8 ? 3 : 4), rootBudgetCut: 0.3,
   light: { hearth: [7, 9, 11], brazier: [4, 5.5], leader: 3, leaderFar: 5, dimBand: 1.5, veiledSpeedMul: 1.25, brazierFuelWood: 1, relightSeconds: 2, relightRange: 1.6, pyroRelightRange: 3, fogRadius: 5, fadeSeconds: 3 },
