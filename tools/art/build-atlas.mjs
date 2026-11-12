@@ -11,7 +11,7 @@ import { PALETTE, lint, writePNG } from './pixel.mjs';
 import { MANIFEST, NAMES } from './manifest.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-export const GROUPS = ['tiles', 'props', 'buildings', 'units', 'fx', 'ui'];
+export const GROUPS = ['tiles', 'props', 'buildings', 'units', 'fx', 'ui', 'world2', 'units2', 'ui2'];
 export const MAX_SIZE = 2048;
 const PAD = 1;
 const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));

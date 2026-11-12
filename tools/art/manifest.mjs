@@ -86,6 +86,72 @@ add('ui', 'ui', 'logo');
 for (let c = 32; c <= 126; c++) add('ui', 'font', `font5_${c}`);
 for (const c of [...'0123456789+-!'].map((s) => s.charCodeAt(0))) add('ui', 'font', `font7_${c}`);
 
+// ═════════════════════════ SPEC v2 additions (persistent Hold) ═════════════════════════
+// Owners: world2 (tools/art/sprites/world2.mjs), units2 (units2.mjs), ui2 (ui2.mjs).
+// ── world2: tiles & edges ──
+for (const [b, n] of [['snow', 3], ['ice', 2], ['ash', 3]]) for (let i = 0; i < n; i++) add('world2', 'tile', `tile_${b}_${i}`);
+add('world2', 'tile', 'tile_lava', 2);
+export const EDGE_PAIRS_V2 = ['snow_grass', 'snow_grassdark', 'snow_sand', 'snow_dirt', 'ash_grass', 'ash_grassdark', 'ash_sand', 'ash_dirt', 'ruins_snow', 'ruins_ash'];
+for (const pair of EDGE_PAIRS_V2) for (const p of ['n', 'e', 's', 'w', 'ne', 'se', 'sw', 'nw', 'ine', 'ise', 'isw', 'inw']) add('world2', 'tile', `edge_${pair}_${p}`);
+add('world2', 'fx', 'veil', 4);            // 16×24 rolling purple mist, tiled along region borders
+add('world2', 'tile', 'veil_fill');         // 16×16 opaque veil interior
+// ── world2: props ──
+for (const n of ['snowpine_0', 'snowpine_1', 'deadtree_0', 'deadtree_1', 'resin_0', 'resin_1', 'resin_spent', 'frost_0', 'frost_1', 'frost_spent',
+  'coal_0', 'coal_1', 'coal_spent', 'ruin_old', 'ruin_old_looted', 'boat', 'exp_chest_closed', 'exp_chest_open',
+  'rubble_1', 'rubble_2_wood', 'rubble_2_stone', 'heart_sealed']) add('world2', 'prop', `prop_${n}`);
+add('world2', 'prop', 'prop_heart_sleep', 2); add('world2', 'prop', 'prop_heart_awake', 4);
+// ── world2: buildings ──
+for (let t = 4; t <= 10; t++) add('world2', 'building', `bld_hearth_t${t}`, 4);   // tiers 1-3 reuse bld_hearth_l1..l3
+for (const b of ['calm', 'steady', 'fierce', 'nightmare']) add('world2', 'fx', `bld_beacon_${b}`, 3);
+for (const id of ['house', 'storehouse', 'farm', 'vault', 'scout_lodge', 'forge', 'study', 'market', 'dock'])
+  for (const lv of [1, 2, 3]) add('world2', 'building', `bld_${id}_l${lv}`);
+add('world2', 'building', 'bld_dawn_shrine_l1'); add('world2', 'building', 'bld_watchtower_l1'); add('world2', 'building', 'bld_watchtower_l2');
+for (let m = 0; m < 16; m++) add('world2', 'wall', `bld_wall_ember_${m}`);
+add('world2', 'building', 'bld_brazier_l3', 4);
+for (const d of ['statue', 'well', 'garden', 'lamp', 'coop', 'board']) add('world2', 'prop', `bld_decor_${d}`);
+for (const sk of ['moss', 'frost', 'gilded']) for (const w of ['wood', 'stone']) for (let m = 0; m < 16; m++) add('world2', 'wall', `skin_${sk}_${w}_${m}`);
+for (let i = 0; i < 8; i++) add('world2', 'fx', `banner_${i}`, 2);
+for (const m of ['split', 'barb', 'frostoil', 'scope', 'winch', 'coalcore', 'hawkeye', 'bulwark']) add('world2', 'fx', `bld_module_${m}`);
+add('world2', 'fx', 'bld_frozen_1'); add('world2', 'fx', 'bld_frozen_2'); add('world2', 'fx', 'bld_burning', 3);
+for (const f of ['ember', 'azure', 'verdant', 'violet', 'gold']) add('world2', 'fx', `hearth_flame_${f}`, 4);
+// ── units2 ──
+for (let v = 0; v < 4; v++) {
+  add('units2', 'unit', `villager_${v}_walk`, 4); add('units2', 'unit', `villager_${v}_flee`, 2);
+  for (const j of ['chop', 'mine', 'farm', 'forge', 'read', 'sell']) add('units2', 'unit', `villager_${v}_${j}`, 2);
+}
+add('units2', 'unit', 'traveler_walk', 4); add('units2', 'prop', 'traveler_cart');
+for (const h of ['beast', 'warden', 'shade', 'bomb']) {
+  add('units2', 'unit', `hero_${h}_idle`, 2); add('units2', 'unit', `hero_${h}_walk`, 4);
+  add('units2', 'unit', `hero_${h}_attack`, 3); add('units2', 'unit', `hero_${h}_down`); add('units2', 'icon', `portrait_${h}`);
+}
+for (const h of ['knight', 'ranger', 'pyro', 'tinker', 'cleric', 'rogue', 'beast', 'warden', 'shade', 'bomb']) add('units2', 'unit', `garrison_${h}`, 2);
+add('units2', 'unit', 'ally_wolf_move', 4); add('units2', 'unit', 'ally_wolf_attack', 2);
+add('units2', 'fx', 'fx_flare', 3); add('units2', 'fx', 'fx_barrel_fuse', 2); add('units2', 'fx', 'proj_javelin'); add('units2', 'fx', 'proj_bomb'); add('units2', 'fx', 'proj_boulder'); add('units2', 'fx', 'proj_barrel');
+for (const e of ['burrower', 'shrieker', 'hurler', 'frostwraith', 'cinderling']) { add('units2', 'unit', `enemy_${e}_move`, 4); add('units2', 'unit', `enemy_${e}_attack`, 2); }
+add('units2', 'unit', 'enemy_burrower_mound', 2); add('units2', 'fx', 'fx_shriek', 3);
+add('units2', 'unit', 'boss_briarqueen_walk', 4); add('units2', 'unit', 'boss_briarqueen_cast', 2);
+add('units2', 'unit', 'boss_colossus_walk', 4); add('units2', 'unit', 'boss_colossus_throw', 2);
+add('units2', 'unit', 'boss_rimefather_walk', 4); add('units2', 'unit', 'boss_rimefather_cast', 2);
+add('units2', 'unit', 'enemy_champion_move', 4); add('units2', 'unit', 'enemy_champion_attack', 2);
+for (const k of ['summon', 'haste', 'shield']) add('units2', 'fx', `champion_${k}`, 2);
+add('units2', 'fx', 'fx_thorns', 3); add('units2', 'fx', 'fx_blizzard', 3); add('units2', 'fx', 'fx_seal', 6); add('units2', 'fx', 'fx_tier_up', 6);
+// ── ui2 ──
+for (const n of ['iron', 'food', 'essence', 'lore', 'resin', 'frost', 'coal', 'warmth', 'warmth_off', 'shard', 'trail', 'bounty', 'chronicle',
+  'garrison', 'dispatch', 'extract', 'village', 'hero', 'book', 'map', 'research', 'forge', 'market', 'storage', 'vault', 'gear_weapon',
+  'gear_armor', 'gear_charm', 'star', 'star_off', 'relocate', 'rebuild', 'clock', 'goal', 'gift', 'blessing', 'achievement', 'cosmetic',
+  'threat', 'region', 'workers', 'hungry', 'away'])
+  add('ui2', 'icon', `icon_${n}`);
+for (const b of ['calm', 'steady', 'fierce', 'nightmare']) add('ui2', 'icon', `beacon_${b}`);
+for (const m of ['new', 'crescent', 'half', 'gibbous', 'full', 'waning', 'blood']) add('ui2', 'icon', `moon_${m}`);
+for (const e of ['swarm', 'pincer', 'hunters', 'short', 'rain']) add('ui2', 'icon', `event_${e}`);
+for (const c of ['owl', 'whetstone', 'chestnut', 'tinkerlock', 'shell', 'windchime', 'cateye', 'hunger', 'icecore', 'luckycoin', 'phoenix', 'fuse']) add('ui2', 'icon', `charm_${c}`);
+for (const m of ['split', 'barb', 'frostoil', 'scope', 'winch', 'coalcore', 'hawkeye', 'bulwark']) add('ui2', 'icon', `module_${m}`);
+for (const r of ['common', 'rare', 'epic']) add('ui2', 'ui', `ui_gear_frame_${r}`);
+for (let b = 0; b < 3; b++) for (let i = 0; i < 8; i++) add('ui2', 'icon', `research_${b}_${i}`);
+for (let i = 0; i < 10; i++) add('ui2', 'ui', `badge_frame_${i}`);
+for (const n of ['bottombar', 'tab_icon_on', 'tab_icon_off', 'chronicle_bar', 'chronicle_node', 'chronicle_node_done', 'away_header', 'goal_strip',
+  'island_card', 'timer_frame', 'slot_empty', 'slot_garrison', 'progress_frame', 'progress_fill', 'map_frame', 'map_pin_heart', 'map_pin_dock', 'map_pin_rift'])
+  add('ui2', 'ui', `ui_${n}`);
 export const MANIFEST = out;
 export const NAMES = new Set(out.map((e) => e.name));
 // Boon id → icon name (boon ids are defined in core/data/boons.ts and MUST use these ids).
