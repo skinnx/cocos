@@ -14,6 +14,8 @@ npm install
 npm run preview                    # web preview at http://127.0.0.1:4177/  (?debug=1 for window.__EH)
 npm run verify -- --allow-blocked  # art, audio, typecheck, tests, balance, preview bundle, e2e
 ```
+Gameplay video: [`docs/video/gameplay.mp4`](docs/video/gameplay.mp4) (re-record with `node tools/verify/video.mjs`).
+
 Individual steps: `npm run art`, `npm run audio`, `npm run typecheck`, `npm test`, `npm run sim:balance`, `npm run e2e`.
 
 ## Layout

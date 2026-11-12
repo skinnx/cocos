@@ -13,3 +13,4 @@ node_modules/
 .vscode/
 .idea/
 node_modules/
+docs/video/*.webm
