@@ -22,6 +22,19 @@ export function wshift(p, dx, dy) { const o = new Px(p.w, p.h); for (let y = 0; 
 export function over(p, x, y, c, on) { const cur = p.get(x, y); if (cur === '.') return p; if (on && !on.includes(cur)) return p; return p.set(x, y, c); }
 // Paint every pixel of colour `from` that is in rect with `to`.
 export function recolorRect(p, x0, y0, w, h, from, to) { for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) if (p.get(x, y) === from) p.set(x, y, to); return p; }
+// For a boolean mask (rows of booleans): Chebyshev distance (≤ r, else 99) from every cell to the nearest cell with the
+// opposite value, looking only inside the mask. Used by edge overlays to fray / decorate a patch's border.
+export function boundaryDist(mask, r = 3) {
+  const h = mask.length, w = mask[0].length;
+  const dist = Array.from({ length: h }, () => Array(w).fill(99));
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++)
+    for (let j = -r; j <= r; j++) for (let i = -r; i <= r; i++) {
+      const X = x + i, Y = y + j;
+      if (X < 0 || Y < 0 || X >= w || Y >= h || mask[Y][X] === mask[y][x]) continue;
+      dist[y][x] = Math.min(dist[y][x], Math.max(Math.abs(i), Math.abs(j)));
+    }
+  return dist;
+}
 // Pixels list helper.
 export function dots(p, pts, c) { for (const [x, y] of pts) p.set(x, y, c); return p; }
 

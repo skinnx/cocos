@@ -1,13 +1,18 @@
 // Pure tile + biome-transition overlay selection (no 'cc'). SPEC §4.1 / §9.4.
-// Edge overlay naming (tools/art/manifest.mjs): edge_<upper>_<lower>_<piece>. An overlay is drawn ON a tile of the
+// Edge overlay naming (tools/art/manifest.mjs): edge_<upper>_<lower>_<piece>; materials stack in MATERIAL_ORDER. An overlay is drawn ON a tile of the
 // LOWER material and paints the UPPER material creeping in from the neighbour side:
 //   n/e/s/w  : the neighbour on that side is upper
 //   ine..inw : both orthogonal neighbours of that corner are upper (inner corner of the lower region)
 //   ne..nw   : only the diagonal neighbour of that corner is upper (outer corner of the upper region)
 import type { Biome } from '../../core/api';
 
-export type Material = 'grass' | 'dirt' | 'sand' | 'water' | 'ruins';
-export const PAIRS = ['grass_dirt', 'grass_sand', 'sand_water'] as const;
+export type Material = 'grass' | 'grassdark' | 'dirt' | 'sand' | 'water' | 'ruins';
+/** Stacking order, low → high: a higher material's overlay is drawn onto the lower tile. */
+// Ruins sit on top: their plazas are compact discs, so the flagstones break up outward onto the surrounding ground.
+export const MATERIAL_ORDER: readonly Material[] = ['water', 'sand', 'dirt', 'grassdark', 'grass', 'ruins'];
+// One pair for every two land materials MapGen can put side by side (mirror of EDGE_PAIRS in tools/art/manifest.mjs).
+export const PAIRS = ['grass_dirt', 'grass_sand', 'sand_water', 'grass_grassdark', 'ruins_grass', 'grassdark_dirt',
+  'grassdark_sand', 'ruins_grassdark', 'dirt_sand', 'ruins_dirt', 'ruins_sand'] as const;
 
 export function materialOf(b: Biome | string): Material {
   switch (b) {
@@ -15,14 +20,14 @@ export function materialOf(b: Biome | string): Material {
     case 'shore': return 'sand';
     case 'quarry': return 'dirt';
     case 'ruins': return 'ruins';
+    case 'forest': return 'grassdark';
     default: return 'grass';
   }
 }
 
 /** Upper material that overlays onto a lower one, or null when no overlay pair exists. */
 export function overlayPair(upper: Material, lower: Material): string | null {
-  const lo = lower === 'ruins' ? 'dirt' : lower;
-  const key = `${upper}_${lo}`;
+  const key = `${upper}_${lower}`;
   return (PAIRS as readonly string[]).includes(key) ? key : null;
 }
 
@@ -50,15 +55,13 @@ export function edgeOverlays(x: number, y: number, at: (x: number, y: number) =>
   const me = at(x, y);
   const out: string[] = [];
   // candidate uppers in draw order (lowest first so higher materials draw on top)
-  const uppers: Material[] = ['sand', 'grass'];
-  for (const up of uppers) {
-    if (up === me) continue;
+  for (const up of MATERIAL_ORDER.slice(MATERIAL_ORDER.indexOf(me) + 1)) {
     const pair = overlayPair(up, me);
     if (!pair) continue;
+    // land touching water directly (rare: MapGen normally rings water with shore) gets the sand/foam rim too
     const isUp = (dx: number, dy: number) => {
       const m = at(x + dx, y + dy);
-      // grass also counts as "covering" sand over water etc. via higher priority materials
-      return m === up || (up === 'sand' && m === 'grass' && me === 'water');
+      return m === up || (me === 'water' && up === 'sand' && m !== 'water');
     };
     const o = [isUp(0, -1), isUp(1, 0), isUp(0, 1), isUp(-1, 0)];
     const corners: Array<[string, number, number, number, number]> = [

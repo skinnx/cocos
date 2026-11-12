@@ -6,7 +6,8 @@ import {
 import { countFrames, defaultAnchor, frameName, nineRects, parseAtlas } from '../../assets/scripts/game/logic/atlasData';
 import { bresenham4, classifyDrag, footprintOrigin, isTap, paintCells, paintPlan, ringPoints } from '../../assets/scripts/game/logic/gestures';
 import { edgeArrow, fillMinimap, projectToMinimap, unprojectMinimap, MINI_COLORS } from '../../assets/scripts/game/logic/minimap';
-import { edgeOverlays, materialOf, tileSprite, type Material } from '../../assets/scripts/game/logic/edges';
+import { edgeOverlays, materialOf, tileSprite, MATERIAL_ORDER, PAIRS, type Material } from '../../assets/scripts/game/logic/edges';
+import { generateMap } from '../../assets/scripts/core/sim/MapGen';
 import { fillLight, sampleAlpha, TEXELS_PER_TILE } from '../../assets/scripts/game/logic/light';
 import { glyphName, layoutText, toAscii, fmtNum } from '../../assets/scripts/game/logic/text';
 import { crossfade, musicFor, parseAudioManifest, sfxForEvent, VoiceLimiter } from '../../assets/scripts/game/logic/audio';
@@ -17,7 +18,7 @@ import {
 import { bounceScale, damageNumber, flyPath, lowHearthAlpha, fadeAlpha } from '../../assets/scripts/game/logic/juice';
 import { validRunSnapshot, safeGet, safeSet } from '../../assets/scripts/game/logic/save';
 import { tabItems, rangeRings, previewSprite, isLocked } from '../../assets/scripts/game/logic/catalog';
-import { MANIFEST, NAMES } from '../../tools/art/manifest.mjs';
+import { MANIFEST, NAMES, EDGE_PAIRS } from '../../tools/art/manifest.mjs';
 import { readFileSync, existsSync } from 'node:fs';
 
 describe('camera scale math (SPEC §3)', () => {
@@ -205,7 +206,7 @@ describe('minimap projection + edge arrows', () => {
 describe('biome edges + tiles', () => {
   const grid = (rows: string[]) => (x: number, y: number): Material => {
     const ch = rows[y]?.[x];
-    return ch === 'g' ? 'grass' : ch === 'd' ? 'dirt' : ch === 's' ? 'sand' : 'water';
+    return ch === 'g' ? 'grass' : ch === 'd' ? 'dirt' : ch === 's' ? 'sand' : ch === 'f' ? 'grassdark' : ch === 'r' ? 'ruins' : 'water';
   };
   it('edge pieces on the lower material from the upper neighbour side', () => {
     const at = grid(['ggg', 'ddd', 'ddd']);
@@ -225,18 +226,47 @@ describe('biome edges + tiles', () => {
     const at2 = grid(['g', 's']);
     expect(edgeOverlays(0, 1, at2)).toEqual(['edge_grass_sand_n']);
   });
+  it('ruins and forest floor get their own transitions (no square cut)', () => {
+    expect(edgeOverlays(0, 1, grid(['r', 'g']))).toEqual(['edge_ruins_grass_n']);
+    expect(edgeOverlays(0, 1, grid(['g', 'f']))).toEqual(['edge_grass_grassdark_n']);
+    expect(edgeOverlays(0, 1, grid(['f', 'd']))).toEqual(['edge_grassdark_dirt_n']);
+    expect(edgeOverlays(0, 1, grid(['r', 'f']))).toEqual(['edge_ruins_grassdark_n']);
+    expect(edgeOverlays(0, 1, grid(['r', 'd']))).toEqual(['edge_ruins_dirt_n']);
+    expect(edgeOverlays(0, 1, grid(['d', 's']))).toEqual(['edge_dirt_sand_n']);
+    expect(edgeOverlays(0, 1, grid(['r', 's']))).toEqual(['edge_ruins_sand_n']);
+    expect(edgeOverlays(0, 1, grid(['d', 'r']))).toEqual([]); // the higher material never gets an overlay
+    // several uppers: drawn low → high so the highest material ends on top
+    expect(edgeOverlays(1, 1, grid(['.r.', 'fdg', '...']))).toEqual(['edge_grassdark_dirt_w', 'edge_grass_dirt_e', 'edge_ruins_dirt_n']);
+    // land touching water directly still gets the beach rim
+    expect(edgeOverlays(0, 1, grid(['f', 'w']))).toEqual(['edge_sand_water_n']);
+    expect([...PAIRS]).toEqual(EDGE_PAIRS);
+  });
+  it('every pair of land biomes MapGen puts side by side has an overlay pair', () => {
+    for (let seed = 1; seed <= 12; seed++) {
+      const m = generateMap(seed * 7919), n = m.size;
+      for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) for (const [dx, dy] of [[1, 0], [0, 1], [1, 1], [-1, 1]]) {
+        const X = x + dx, Y = y + dy; if (X < 0 || Y < 0 || X >= n || Y >= n) continue;
+        const a = materialOf(m.biome[y * n + x]), b = materialOf(m.biome[Y * n + X]);
+        if (a === b) continue;
+        const [lo, hi] = MATERIAL_ORDER.indexOf(a) < MATERIAL_ORDER.indexOf(b) ? [a, b] : [b, a];
+        const pair = lo === 'water' ? 'sand_water' : `${hi}_${lo}`;
+        expect(NAMES.has(`edge_${pair}_n`), `${hi} over ${lo}`).toBe(true);
+      }
+    }
+  });
   it('every overlay / tile name exists in the manifest', () => {
-    const mats: Material[] = ['grass', 'dirt', 'sand', 'water'];
+    const mats: Material[] = ['grass', 'grassdark', 'dirt', 'sand', 'ruins', 'water'];
     let checked = 0;
-    for (let m = 0; m < 4 ** 9; m += 37) {
+    for (let m = 0; m < 6 ** 9; m += 211) {
       const cells: Material[] = []; let v = m;
-      for (let i = 0; i < 9; i++) { cells.push(mats[v % 4]); v = Math.floor(v / 4); }
+      for (let i = 0; i < 9; i++) { cells.push(mats[v % 6]); v = Math.floor(v / 6); }
       const at = (x: number, y: number) => (x < 0 || y < 0 || x > 2 || y > 2 ? 'water' : cells[y * 3 + x]);
       for (const n of edgeOverlays(1, 1, at)) { expect(NAMES.has(n)).toBe(true); checked++; }
     }
     expect(checked).toBeGreaterThan(50);
     for (const b of ['water', 'shore', 'meadow', 'forest', 'quarry', 'ruins']) for (let v = 0; v < 16; v++) expect(NAMES.has(tileSprite(b, v, v & 1))).toBe(true);
-    expect(materialOf('forest')).toBe('grass');
+    expect(materialOf('forest')).toBe('grassdark');
+    expect(materialOf('ruins')).toBe('ruins');
   });
 });
 

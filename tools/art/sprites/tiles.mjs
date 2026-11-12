@@ -6,7 +6,8 @@
 //   ine ise isw inw : inner corner — BOTH orthogonal neighbours (e.g. N and E for ine) are upper → L-shaped
 //                  band with a rounded concave corner. Use it instead of drawing the two edge pieces.
 // Every band is exactly 5 px deep where it meets the tile border, so pieces chain seamlessly with each other.
-import { Px, hash, wset, wget, wshift } from './_world_helpers.mjs';
+import { Px, hash, wset, wget, wshift, boundaryDist } from './_world_helpers.mjs';
+import { EDGE_PAIRS } from '../manifest.mjs';
 
 const S = 16;
 
@@ -105,6 +106,11 @@ const PROFILES = {
   grass_dirt: [5, 5, 6, 6, 5, 4, 4, 5, 6, 7, 6, 5, 4, 4, 5, 5],
   grass_sand: [5, 6, 6, 5, 4, 4, 5, 5, 6, 6, 7, 6, 5, 4, 5, 5],
   sand_water: [5, 5, 4, 4, 5, 6, 6, 6, 5, 4, 4, 5, 6, 6, 5, 5],
+  // forest floor: ragged, finer-grained boundary (softened further by dithering)
+  soft: [5, 4, 6, 7, 5, 3, 4, 6, 7, 5, 4, 6, 3, 4, 6, 5],
+  // over ruin flagstones: stepped runs that break along slab-sized chunks
+  broken: [5, 5, 6, 6, 6, 4, 4, 4, 5, 7, 7, 6, 6, 4, 5, 5],
+  dirt_sand: [5, 6, 5, 4, 4, 5, 6, 7, 6, 5, 5, 4, 5, 6, 5, 5],
 };
 const mk = () => Array.from({ length: S }, () => Array(S).fill(false));
 const rot = (m) => { const o = mk(); for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) o[y][x] = m[S - 1 - x][y]; return o; }; // 90° clockwise
@@ -139,27 +145,88 @@ function paintEdge(mask, upper, rimOut, rimOutLit, edgeHi, edgeLo, tuftC) {
   // rim on the lower side: shadow below/right of the patch, lighter rim above/left (foam for water)
   for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
     if (U(x, y)) continue;
-    if (U(x, y - 1) || U(x - 1, y)) p.set(x, y, rimOut);
+    if (rimOut && (U(x, y - 1) || U(x - 1, y))) p.set(x, y, rimOut);
     else if (rimOutLit && (U(x, y + 1) || U(x + 1, y))) p.set(x, y, rimOutLit);
   }
   // a few blades poking out past the border (grass only)
   if (tuftC) for (let y = 1; y < S - 1; y++) for (let x = 1; x < S - 1; x++)
-    if (p.get(x, y) === rimOut && U(x, y - 1) && hash(x, y, 77) < 0.18) p.set(x, y, tuftC);
+    if (!U(x, y) && U(x, y - 1) && (p.get(x, y) === rimOut || !rimOut) && hash(x, y, 77) < 0.18) p.set(x, y, tuftC);
   return p;
 }
+// Forest-floor seam: no hard rim — the light patch frays into the dark floor (holes along its border, stray
+// light pixels and blades just outside it). Tile-border rows/columns are left untouched so pieces chain.
+function softenEdge(p, mask, light, blade, seed) {
+  const dist = boundaryDist(mask);
+  for (let y = 1; y < S - 1; y++) for (let x = 1; x < S - 1; x++) {
+    const h = hash(x, y, seed), d = dist[y][x];
+    if (mask[y][x]) { if (d === 1 && h < 0.3) p.set(x, y, '.'); }
+    else if (d === 1 && h < 0.42) p.set(x, y, h < 0.12 ? blade : light);
+    else if (d === 2 && h < 0.16) p.set(x, y, light);
+    else if (d === 3 && h < 0.05) p.set(x, y, light);
+  }
+  return p;
+}
+// Ruin flagstones breaking up onto the ground around them: chipped slab edges show the ground through, the ground's
+// growth / dust fills the joints near the break, a hairline crack or two, and loose slab fragments lie just outside.
+function brokenSlabs(p, mask, low, seed) {
+  const dist = boundaryDist(mask);
+  let frags = 0;
+  for (let y = 1; y < S - 1; y++) for (let x = 1; x < S - 1; x++) {
+    const h = hash(x, y, seed), d = dist[y][x];
+    if (mask[y][x]) {
+      if (d === 1 && h < 0.2) p.set(x, y, low.base); // chipped-off edge
+      else if (d <= 2 && p.get(x, y) === 's' && h < 0.6) p.set(x, y, low.blade); // growth / dust in the joints
+      else if (d === 2 && h > 0.88) p.set(x, y, 's'); // hairline crack
+    } else if (d === 2 && frags < 2 && x < S - 2 && !mask[y][x + 1] && dist[y][x + 1] >= 2 && h < 0.12) {
+      p.set(x, y, 'u').set(x + 1, y, 't'); if (y + 1 < S - 1 && !mask[y + 1][x]) p.set(x, y + 1, low.shadow); // loose fragment + its shadow
+      frags++;
+    } else if (d === 3 && h < 0.04) p.set(x, y, 't'); // pebble
+  }
+  return p;
+}
+// Loose crumbs either side of a soft-material seam (dirt over sand): grains of the lower material inside the patch,
+// crumbs of the upper one just outside it.
+function crumbs(p, mask, inC, outC, seed) {
+  const dist = boundaryDist(mask);
+  for (let y = 1; y < S - 1; y++) for (let x = 1; x < S - 1; x++) {
+    const h = hash(x, y, seed);
+    if (dist[y][x] === 2 && h < 0.14) p.set(x, y, mask[y][x] ? inC : outC);
+  }
+  // small corner blobs may get no grain from the hash: place one at the deepest interior pixel
+  if (!p.d.some((r) => r.includes(inC))) {
+    let best = null;
+    for (let y = 1; y < S - 1; y++) for (let x = 1; x < S - 1; x++) if (mask[y][x] && dist[y][x] < 99 && (!best || dist[y][x] > best[2])) best = [x, y, dist[y][x]];
+    if (best) p.set(best[0], best[1], inC);
+  }
+  return p;
+}
+// Per pair: [upper fill, rim shadow (lower side), lit rim (lower side), upper border hi, upper border lo, blade colour, profile, corner wobble]
+const EDGE_STYLE = {
+  grass_dirt: () => [grass(1), 'g', null, 'd', 'b', 'c', PROFILES.grass_dirt, 0.7],
+  grass_sand: () => [grass(2), 'h', null, 'd', 'b', 'c', PROFILES.grass_sand, 0.7],
+  sand_water: () => [sand(0), 'E', 'D', 'i', 'h', null, PROFILES.sand_water, -0.6],
+  grass_grassdark: () => [grass(0), null, null, 'd', 'b', null, PROFILES.soft, 0.9],
+  grassdark_dirt: () => [darkGrass(0), 'g', null, 'c', 'a', 'b', PROFILES.grass_dirt, 0.7],
+  grassdark_sand: () => [darkGrass(1), 'h', null, 'c', 'a', 'b', PROFILES.grass_sand, 0.7],
+  dirt_sand: () => [dirt(0), 'h', null, 'i', 'g', null, PROFILES.dirt_sand, 0.6],
+  // ruin flagstones over the ground: slabs lit top-left ('u'), dark bottom-right edge ('s'), ground shadow below
+  ruins_grass: () => [ruins(0), 'b', null, 'u', 's', 'd', PROFILES.broken, 0.4],
+  ruins_grassdark: () => [ruins(1), 'a', null, 'u', 's', 'c', PROFILES.broken, 0.4],
+  ruins_dirt: () => [ruins(2), 'g', null, 'u', 's', null, PROFILES.broken, 0.4],
+  ruins_sand: () => [ruins(0), 'h', null, 'u', 's', null, PROFILES.broken, 0.4],
+};
+// the ground under ruins_<lower>: base, shadow and growth/dust colours (used by brokenSlabs)
+const UNDER = {
+  ruins_grass: { base: 'c', shadow: 'b', blade: 'd' }, ruins_grassdark: { base: 'b', shadow: 'a', blade: 'c' },
+  ruins_dirt: { base: 'h', shadow: 'g', blade: 'h' }, ruins_sand: { base: 'i', shadow: 'h', blade: 'i' },
+};
 function edges(pair) {
-  const prof = PROFILES[pair];
-  const n = bandN(prof), ne = cornerNE(pair === 'sand_water' ? -0.6 : 0.7), ine = innerNE(prof);
+  const [upper, rimOut, rimLit, hi, lo, tuftC, prof, wob] = EDGE_STYLE[pair]();
+  const n = bandN(prof), ne = cornerNE(wob), ine = innerNE(prof);
   const r1 = rot, r2 = (m) => rot(rot(m)), r3 = (m) => rot(rot(rot(m)));
   const masks = { n, e: r1(n), s: r2(n), w: r3(n), ne, se: r1(ne), sw: r2(ne), nw: r3(ne), ine, ise: r1(ine), isw: r2(ine), inw: r3(ine) };
-  let style;
-  if (pair === 'grass_dirt') style = [grass(1), 'g', null, 'd', 'b', 'c'];
-  else if (pair === 'grass_sand') style = [grass(2), 'h', null, 'd', 'b', 'c'];
-  else { // sand over water: wet sand border, foam ring on the water side
-    style = [sand(0), 'E', 'D', 'i', 'h', null];
-  }
-  return Object.entries(masks).map(([k, m]) => {
-    const p = paintEdge(m, ...style);
+  return Object.entries(masks).map(([k, m], i) => {
+    const p = paintEdge(m, upper, rimOut, rimLit, hi, lo, tuftC);
     if (pair === 'sand_water') { // second, broken foam ring + sparkle for life
       const src = p.clone();
       for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
@@ -167,6 +234,9 @@ function edges(pair) {
         if ([[1, 0], [-1, 0], [0, 1], [0, -1]].some(([i, j]) => src.get(x + i, y + j) === 'E') && hash(x, y, 5) < 0.45) p.set(x, y, 'D');
       }
     }
+    if (pair === 'grass_grassdark') softenEdge(p, m, 'c', 'd', 91 + i);
+    if (pair === 'dirt_sand') crumbs(p, m, 'i', 'g', 151 + i);
+    if (UNDER[pair]) brokenSlabs(p, m, UNDER[pair], 131 + i);
     return { name: `edge_${pair}_${k}`, px: p, kind: 'tile', ax: 0, ay: 0 };
   });
 }
@@ -181,6 +251,6 @@ export default function build() {
   for (let i = 0; i < 3; i++) add(`tile_sand_${i}`, sand(i));
   for (let i = 0; i < 3; i++) add(`tile_ruins_${i}`, ruins(i));
   for (let i = 0; i < 2; i++) add(`tile_water_${i}`, water(i));
-  for (const pair of ['grass_dirt', 'grass_sand', 'sand_water']) out.push(...edges(pair));
+  for (const pair of EDGE_PAIRS) out.push(...edges(pair));
   return out;
 }

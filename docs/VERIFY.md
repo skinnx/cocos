@@ -7,7 +7,7 @@ Last full run: `npm run verify -- --allow-blocked`, 2026-11-12. Exit 0. Step log
 | Check | Status | Evidence |
 |---|---|---|
 | Typecheck (core + game) | PASS | `npm run typecheck`; game layer checked against `types/cc-shim.d.ts` (see Blocked) |
-| Unit tests | PASS | 163/163 (`npx vitest run`) |
+| Unit tests | PASS | 165/165 (`npx vitest run`) |
 | Balance gates | PASS | NoBuildBot loses by night 4 in 97%; BaselineBot survives night 5 in 87%, wins night 10 in 0% (≤35%); longest night 128.6 s (≤150) |
 | Art lint + manifest | PASS | `node tools/art/build-atlas.mjs` → `atlas: OK`, all manifest sprites present |
 | Audio generation | PASS | `npm run audio` + `node tools/audio/verify.mjs`; 30 SFX + 3 music loops, 2.99 MB |
@@ -24,7 +24,7 @@ Last full run: `npm run verify -- --allow-blocked`, 2026-11-12. Exit 0. Step log
 | 2 | Night: stepped light, veiled eyes, towers firing, damage numbers, seamless auto-tile walls | Yes | night-defense.png |
 | 3 | Build mode: grid, green/red ghosts, drawer with real sprites, range ring, synergy link | Yes | build-mode.png |
 | 4 | HUD readable at 390×844, safe area, bitmap font only | Yes | all |
-| 5 | Biome transitions without square cuts; correct y-sort | Being fixed (ruins / forest edges were square-cut) | night-defense.png, boss.png |
+| 5 | Biome transitions without square cuts; correct y-sort | Yes (8 edge pairs added for ruins, forest, dirt/sand) | night-defense.png, boss.png, day-explore.png |
 | 6 | Same style as `docs/art/style-anchor.png` | Yes | all |
 
 ## C. Play checks (e2e + debug hooks, on the web preview)

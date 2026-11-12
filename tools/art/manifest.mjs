@@ -13,7 +13,11 @@ for (const [b, n] of [['grass', 4], ['grass_flower', 2], ['grass_dark', 3], ['di
   for (let i = 0; i < n; i++) add('tiles', 'tile', `tile_${b}_${i}`);
 add('tiles', 'tile', 'tile_water', 2);
 // edge overlays: <pair> = upper_lower biome; pieces = n e s w (edges), ne se sw nw (outer corners), ine ise isw inw (inner corners)
-for (const pair of ['grass_dirt', 'grass_sand', 'sand_water'])
+// Material stacking order (low → high): water < sand < dirt < grassdark (forest) < grass < ruins. One pair for every two
+// land materials that MapGen can put side by side (assets/scripts/game/logic/edges.ts EDGE_PAIRS mirrors this list).
+export const EDGE_PAIRS = ['grass_dirt', 'grass_sand', 'sand_water', 'grass_grassdark', 'ruins_grass', 'grassdark_dirt',
+  'grassdark_sand', 'ruins_grassdark', 'dirt_sand', 'ruins_dirt', 'ruins_sand'];
+for (const pair of EDGE_PAIRS)
   for (const p of ['n', 'e', 's', 'w', 'ne', 'se', 'sw', 'nw', 'ine', 'ise', 'isw', 'inw']) add('tiles', 'tile', `edge_${pair}_${p}`);
 
 // ── props (owner: props) ──────────────────────────────────────────────────────
