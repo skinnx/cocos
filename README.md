@@ -5,6 +5,7 @@ Mobile portrait game: a squad of pixel-art heroes explores by day, builds a free
 ![Night defense](docs/shots/night-defense.png)
 
 ## Status
+- **SPEC.md is now v2 ("persistent Hold"): one permanent base, no runs.** The code in this repo still implements v1 ([`docs/SPEC-v1.md`](docs/SPEC-v1.md)); the migration plan is SPEC §13.8 and §14, and [`PROMPT.md`](PROMPT.md) is the prompt to carry it out.
 - Done: deterministic core simulation, all content in the SPEC (17 buildings, 6 heroes, 7 enemies + 2 bosses, 24 boons, POIs, meta progression), 591 generated sprites, generated audio, Cocos 4 view layer, web preview, tests, bot balance gates, e2e.
 - **Blocked:** the COCOS 4 CLI could not be installed in the environment this was built in, so there is no Cocos scene/build yet and the Cocos layer has never run in the real engine. Details and the unblock steps: [`docs/VERIFY.md`](docs/VERIFY.md).
 
