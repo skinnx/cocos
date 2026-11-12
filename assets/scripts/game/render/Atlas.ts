@@ -64,6 +64,7 @@ export class Atlas {
   has = (name: string): boolean => this.data.frames.has(name);
   rect(name: string): FrameRect | undefined { return this.data.frames.get(name); }
   width(name: string): number { return this.data.frames.get(name)?.w ?? 0; }
+  advance(name: string): number { return this.data.frames.get(name)?.advance ?? 0; }
 
   frame(name: string): SpriteFrame | null {
     let sf = this.frames.get(name);

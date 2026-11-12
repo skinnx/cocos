@@ -1,5 +1,6 @@
 // Text rendered exclusively from the pixel font glyph sprites in the atlas (font5_* / font7_*), never a system font
-// (SPEC §9.4). Optional 1-px drop shadow for legibility over the world. Big-text mode scales UI text ×1.5 (§10.4).
+// (SPEC §9.4). Glyphs are pre-outlined in the atlas; the tint colours the ink. Optional extra 1-px drop shadow.
+// Big-text mode scales UI text ×1.5 (§10.4).
 import type { Node } from 'cc';
 import { layoutText, type FontId } from '../logic/text';
 import { Atlas } from '../render/Atlas';
@@ -30,7 +31,7 @@ export class BitmapText {
     this.gl = mkNode('gl', this.node);
     this.opts = {
       font: opts.font ?? 'font5', align: opts.align ?? 'left', maxWidth: opts.maxWidth ?? Infinity,
-      ax: opts.ax ?? 0, ay: opts.ay ?? 1, shadow: opts.shadow ?? true, scalable: opts.scalable ?? true,
+      ax: opts.ax ?? 0, ay: opts.ay ?? 1, shadow: opts.shadow ?? false, scalable: opts.scalable ?? true,
     };
     if (opts.color) this.col = opts.color;
   }
@@ -43,7 +44,7 @@ export class BitmapText {
     if (color) this.col = color;
     this.text = text;
     const a = Atlas.inst;
-    const lay = layoutText(text, this.opts.font, (n) => a.width(n), this.opts.maxWidth / k, this.opts.align);
+    const lay = layoutText(text, this.opts.font, (n) => a.advance(n), this.opts.maxWidth / k, this.opts.align);
     this.width = lay.width * k; this.height = lay.height * k;
     const ox = -Math.round(this.opts.ax * lay.width), top = Math.round((1 - this.opts.ay) * lay.height);
     let i = 0;

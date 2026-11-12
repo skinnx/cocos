@@ -9,6 +9,8 @@ export interface FrameRect {
   anchorX: number; anchorY: number;
   /** 9-slice insets in art px (left, top, right, bottom) */
   slice: [number, number, number, number] | null;
+  /** glyph pen advance (font frames), 0 when absent */
+  advance: number;
 }
 export interface AtlasData { size: [number, number]; frames: Map<string, FrameRect> }
 
@@ -45,7 +47,7 @@ export function parseAtlas(json: unknown): AtlasData {
     let slice: [number, number, number, number] | null = null;
     if (Array.isArray(f.slice) && f.slice.length === 4) slice = [f.slice[0], f.slice[1], f.slice[2], f.slice[3]].map(Number) as [number, number, number, number];
     else slice = defaultSlice(name, w, h);
-    frames.set(name, { name, x, y, w, h, ax, ay, anchorX: ax / w, anchorY: 1 - ay / h, slice });
+    frames.set(name, { name, x, y, w, h, ax, ay, anchorX: ax / w, anchorY: 1 - ay / h, slice, advance: Number(f.advance) || 0 });
     if (size[0] === 0) { size[0] = Math.max(size[0], x + w); size[1] = Math.max(size[1], y + h); }
   }
   return { size, frames };
