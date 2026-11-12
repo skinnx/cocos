@@ -73,39 +73,36 @@ export function contactShadow(p, cx, cy, rx, ry, c = 'n') {
 }
 
 // ── Fire ────────────────────────────────────────────────────────────────────────
-// Layered flame: tongues whose heights wobble with `phase` (0..3). Outer x, mid y, core z.
-// cx = centre column (may be .5), by = bottom row, w = half-width at base, h = height.
-export function flame(p, cx, by, hw, h, phase, { tongues = 3, core = true, sparks = true, outer = 'x', mid = 'y', inner = 'z' } = {}) {
+// Multi-tongue flame. Several teardrop tongues of different heights merge into one jagged silhouette;
+// every tongue's height and lean cycle with `phase` (0..3) at its own offset, so 4 frames loop and the
+// fire visibly licks rather than scaling. Layers: outer `x`, body `y`, core `z` (+ optional `w` heart).
+// cx = centre column (may be .5), by = bottom row, hw = half-width of the whole fire, h = max height.
+export function flame(p, cx, by, hw, h, phase, { tongues = 3, core = true, heart = false } = {}) {
   const ph = (phase % 4) * (Math.PI / 2);
-  const layer = (scale, c, hshift) => {
-    const H = h * scale, W = hw * scale;
-    for (let y = 0; y < Math.ceil(H) + 1; y++) {
-      const t = y / H; if (t > 1) break;
-      // body tapers; tongues add flicker in the upper half
-      let half = W * Math.sqrt(Math.max(0, 1 - t)) * (1 - 0.35 * t);
-      const lean = Math.sin(ph + t * 3.2) * t * hw * 0.35;
-      const yy = by - y - hshift;
-      for (let x = Math.floor(cx - half + lean - 0.5); x <= Math.ceil(cx + half + lean - 0.5); x++) {
-        const px = x + 0.5 - (cx + lean);
-        if (Math.abs(px) <= half + 0.01) p.set(x, yy, c);
-      }
+  const T = [];
+  for (let i = 0; i < tongues; i++) {
+    const u = tongues === 1 ? 0 : (i / (tongues - 1)) * 2 - 1; // -1..1 across the fire
+    const centre = 1 - Math.abs(u) * 0.45;
+    T.push({
+      x: cx + u * hw * 0.55,
+      w: hw * (tongues === 1 ? 1 : 0.62) * (0.8 + 0.2 * centre),
+      h: h * centre * (0.86 + 0.14 * Math.sin(ph + i * 2.3)),
+      lean: Math.sin(ph * 1 + i * 1.7) * 1.6 + u * 1.2,
+    });
+  }
+  const tongue = (t, sw, sh, c, dy = 0) => {
+    const H = t.h * sh, W = t.w * sw;
+    for (let y = 0; y <= Math.ceil(H); y++) {
+      const k = y / H; if (k > 1) break;
+      const half = W * Math.pow(1 - k, 0.75) * Math.min(1, 0.65 + k * 2.2);
+      const xc = t.x + t.lean * k * k * sh;
+      for (let x = Math.floor(xc - half); x <= Math.ceil(xc + half); x++) if (Math.abs(x + 0.5 - xc) <= half) p.set(x, by - y - dy, c);
     }
   };
-  layer(1, outer, 0);
-  // tongues: thin licks above the body, heights cycle with phase
-  for (let i = 0; i < tongues; i++) {
-    const off = (i - (tongues - 1) / 2) * (hw * 0.75);
-    const th = Math.round(h * (0.25 + 0.2 * Math.sin(ph + i * 2.1)) );
-    const x = Math.round(cx - 0.5 + off + Math.sin(ph + i) * 0.6);
-    const base = by - Math.round(h * (0.55 - 0.15 * Math.abs(off) / Math.max(1, hw)));
-    for (let k = 0; k < th; k++) p.set(x + (k > th / 2 ? Math.round(Math.sin(ph + i * 1.7)) : 0), base - k, outer);
-  }
-  layer(0.72, mid, 0);
-  if (core) layer(0.42, inner, 0);
-  if (sparks) {
-    const s = rng(phase * 31 + Math.round(cx * 7));
-    for (let i = 0; i < 2; i++) { const sx = Math.round(cx - 0.5 + (s() - 0.5) * hw * 2.2); const sy = by - h - 1 - Math.floor(s() * 3) - ((phase + i) % 2); p.set(sx, sy, i ? mid : inner); }
-  }
+  T.forEach((t) => tongue(t, 1, 1, 'x'));
+  T.forEach((t) => tongue(t, 0.66, 0.72, 'y'));
+  if (core) T.filter((_, i) => tongues < 3 || (i > 0 && i < tongues - 1)).forEach((t) => tongue(t, 0.4, 0.42, 'z'));
+  if (heart) { p.set(Math.round(cx - 0.5), by - 2, 'w'); p.set(Math.round(cx + 0.5), by - 3, 'w'); }
   return p;
 }
 

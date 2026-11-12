@@ -26,6 +26,7 @@ export interface EnemyX extends EnemyState {
   dead: boolean;
   scale: number;            // render scale (elite 1.25)
   vx: number; vy: number;   // last velocity (mortar prediction)
+  dotFire: number; dotFrost: number; // accumulated damage-over-time, applied every 0.5 s
 }
 
 export const EMODE = { path: 0, chase: 1, attackBld: 2, snuff: 3, ret: 4, idle: 5 } as const;
@@ -57,6 +58,7 @@ export interface BuildingX extends BuildingState {
   burnT: number;            // tar burning seconds left
   dead: boolean;
   dusk: boolean;            // placed during current dusk (100% refund)
+  synMask: number;          // synergy bitmask mirrored into `synergies`
 }
 
 export interface ProjectileX extends ProjectileState {
@@ -97,7 +99,10 @@ export interface RunData {
   nightKills: number; nightGold: number;
   starter: HeroId;
   bossSpawned: boolean;
-  rallyUntil: number;
+  heading: Vec;             // leader facing direction (formation)
+  tutHarvested: boolean;
+  reserveLv: Record<string, number>; // reserve hero levels
+  tavernDay: number;
 }
 
 export interface World {
@@ -114,6 +119,7 @@ export interface World {
   poiAt: Int32Array;        // uid of blocking POI on cell
   staticLight: Uint8Array;  // light from static sources only (build rule 1)
   lightDirty: boolean;
+  wallMaskDirty: boolean;
   fields: { def: FlowField; brk: FlowField; snuff: FlowField };
   ehash: SpatialHash;
   bmap: Map<number, BuildingX>;

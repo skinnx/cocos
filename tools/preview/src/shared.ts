@@ -4,7 +4,7 @@ export { edgeOverlays, materialOf, tileSprite } from '../../../assets/scripts/ga
 export type { Material } from '../../../assets/scripts/game/logic/edges';
 export { fillLight, TEXELS_PER_TILE } from '../../../assets/scripts/game/logic/light';
 export { fillMinimap } from '../../../assets/scripts/game/logic/minimap';
-export { classifyDrag, paintCells, ringPoints, dottedLine, isTap } from '../../../assets/scripts/game/logic/gestures';
+export { classifyDrag, paintCells, paintPlan, footprintOrigin, ringPoints, dottedLine, isTap } from '../../../assets/scripts/game/logic/gestures';
 export type { LineMode, Cell } from '../../../assets/scripts/game/logic/gestures';
 export { basePixelScale, smoothFactor, lookAhead, clampCamera, edgeScroll, pinchStep, zoomSteps } from '../../../assets/scripts/game/logic/camera';
 export { heroSprite, enemySprite, buildingSprites, isFloorBuilding, nodeSprite, nodeShadow, poiSprite, projectileSprite, unitShadow, lerpPos, statusIcons, crackOverlay, isBoss, animFrame, ANIM_FPS } from '../../../assets/scripts/game/logic/sprites';

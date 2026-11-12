@@ -2,11 +2,12 @@
 import type { Atlas } from './atlas';
 import { BitmapFont, COL, TextOpts } from './font';
 
-export interface Hit { x: number; y: number; w: number; h: number; id: string; onTap?: () => void; onDown?: (px: number, py: number) => void; block?: boolean }
+export interface Hit { x: number; y: number; w: number; h: number; id: string; onTap?: () => void; onDown?: (px: number, py: number) => void; onDrag?: (dx: number, dy: number, x: number, y: number) => void; block?: boolean }
 
 export class UI {
   hits: Hit[] = [];
   pressed: string | null = null;
+  tapX = 0; tapY = 0;
   constructor(public atlas: Atlas, public font: BitmapFont, public ctx: CanvasRenderingContext2D) {}
 
   begin() { this.hits = []; }

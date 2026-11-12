@@ -72,3 +72,8 @@ export function recolor(px, map) { const o = px.clone(); for (const r of o.d) fo
 export function hash(a, b = 0, c = 0) { let n = (a * 374761393 + b * 668265263 + c * 974711) | 0; n = (n ^ (n >>> 13)) * 1274126177; n = (n ^ (n >>> 16)) >>> 0; return n / 4294967296; }
 // Flip vertically.
 export function flipY(px) { const p = px.clone(); p.d.reverse(); return p; }
+// Grow the canvas: l/t/r/b transparent columns/rows.
+export function pad(px, l = 1, t = 1, r = l, b = t) { return new Px(px.w + l + r, px.h + t + b).stamp(px, l, t); }
+// Delete column x / row y (used to slim a typed grid without retyping it).
+export function delCol(px, x) { const p = new Px(px.w - 1, px.h); p.d = px.d.map((r) => r.filter((_, i) => i !== x)); return p; }
+export function delRow(px, y) { const p = new Px(px.w, px.h - 1); p.d = px.d.filter((_, i) => i !== y).map((r) => [...r]); return p; }

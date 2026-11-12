@@ -1,0 +1,448 @@
+{
+ "font5": {
+  "lineHeight": 10,
+  "capHeight": 7,
+  "outline": 1,
+  "glyphs": {
+   "32": {
+    "frame": "font5_32",
+    "advance": 4
+   },
+   "33": {
+    "frame": "font5_33",
+    "advance": 2
+   },
+   "34": {
+    "frame": "font5_34",
+    "advance": 4
+   },
+   "35": {
+    "frame": "font5_35",
+    "advance": 6
+   },
+   "36": {
+    "frame": "font5_36",
+    "advance": 6
+   },
+   "37": {
+    "frame": "font5_37",
+    "advance": 6
+   },
+   "38": {
+    "frame": "font5_38",
+    "advance": 6
+   },
+   "39": {
+    "frame": "font5_39",
+    "advance": 2
+   },
+   "40": {
+    "frame": "font5_40",
+    "advance": 4
+   },
+   "41": {
+    "frame": "font5_41",
+    "advance": 4
+   },
+   "42": {
+    "frame": "font5_42",
+    "advance": 6
+   },
+   "43": {
+    "frame": "font5_43",
+    "advance": 6
+   },
+   "44": {
+    "frame": "font5_44",
+    "advance": 3
+   },
+   "45": {
+    "frame": "font5_45",
+    "advance": 5
+   },
+   "46": {
+    "frame": "font5_46",
+    "advance": 2
+   },
+   "47": {
+    "frame": "font5_47",
+    "advance": 6
+   },
+   "48": {
+    "frame": "font5_48",
+    "advance": 6
+   },
+   "49": {
+    "frame": "font5_49",
+    "advance": 6
+   },
+   "50": {
+    "frame": "font5_50",
+    "advance": 6
+   },
+   "51": {
+    "frame": "font5_51",
+    "advance": 6
+   },
+   "52": {
+    "frame": "font5_52",
+    "advance": 6
+   },
+   "53": {
+    "frame": "font5_53",
+    "advance": 6
+   },
+   "54": {
+    "frame": "font5_54",
+    "advance": 6
+   },
+   "55": {
+    "frame": "font5_55",
+    "advance": 6
+   },
+   "56": {
+    "frame": "font5_56",
+    "advance": 6
+   },
+   "57": {
+    "frame": "font5_57",
+    "advance": 6
+   },
+   "58": {
+    "frame": "font5_58",
+    "advance": 2
+   },
+   "59": {
+    "frame": "font5_59",
+    "advance": 3
+   },
+   "60": {
+    "frame": "font5_60",
+    "advance": 5
+   },
+   "61": {
+    "frame": "font5_61",
+    "advance": 5
+   },
+   "62": {
+    "frame": "font5_62",
+    "advance": 5
+   },
+   "63": {
+    "frame": "font5_63",
+    "advance": 6
+   },
+   "64": {
+    "frame": "font5_64",
+    "advance": 6
+   },
+   "65": {
+    "frame": "font5_65",
+    "advance": 6
+   },
+   "66": {
+    "frame": "font5_66",
+    "advance": 6
+   },
+   "67": {
+    "frame": "font5_67",
+    "advance": 6
+   },
+   "68": {
+    "frame": "font5_68",
+    "advance": 6
+   },
+   "69": {
+    "frame": "font5_69",
+    "advance": 6
+   },
+   "70": {
+    "frame": "font5_70",
+    "advance": 6
+   },
+   "71": {
+    "frame": "font5_71",
+    "advance": 6
+   },
+   "72": {
+    "frame": "font5_72",
+    "advance": 6
+   },
+   "73": {
+    "frame": "font5_73",
+    "advance": 4
+   },
+   "74": {
+    "frame": "font5_74",
+    "advance": 6
+   },
+   "75": {
+    "frame": "font5_75",
+    "advance": 6
+   },
+   "76": {
+    "frame": "font5_76",
+    "advance": 6
+   },
+   "77": {
+    "frame": "font5_77",
+    "advance": 6
+   },
+   "78": {
+    "frame": "font5_78",
+    "advance": 6
+   },
+   "79": {
+    "frame": "font5_79",
+    "advance": 6
+   },
+   "80": {
+    "frame": "font5_80",
+    "advance": 6
+   },
+   "81": {
+    "frame": "font5_81",
+    "advance": 6
+   },
+   "82": {
+    "frame": "font5_82",
+    "advance": 6
+   },
+   "83": {
+    "frame": "font5_83",
+    "advance": 6
+   },
+   "84": {
+    "frame": "font5_84",
+    "advance": 6
+   },
+   "85": {
+    "frame": "font5_85",
+    "advance": 6
+   },
+   "86": {
+    "frame": "font5_86",
+    "advance": 6
+   },
+   "87": {
+    "frame": "font5_87",
+    "advance": 6
+   },
+   "88": {
+    "frame": "font5_88",
+    "advance": 6
+   },
+   "89": {
+    "frame": "font5_89",
+    "advance": 6
+   },
+   "90": {
+    "frame": "font5_90",
+    "advance": 6
+   },
+   "91": {
+    "frame": "font5_91",
+    "advance": 4
+   },
+   "92": {
+    "frame": "font5_92",
+    "advance": 6
+   },
+   "93": {
+    "frame": "font5_93",
+    "advance": 4
+   },
+   "94": {
+    "frame": "font5_94",
+    "advance": 6
+   },
+   "95": {
+    "frame": "font5_95",
+    "advance": 6
+   },
+   "96": {
+    "frame": "font5_96",
+    "advance": 3
+   },
+   "97": {
+    "frame": "font5_97",
+    "advance": 6
+   },
+   "98": {
+    "frame": "font5_98",
+    "advance": 6
+   },
+   "99": {
+    "frame": "font5_99",
+    "advance": 5
+   },
+   "100": {
+    "frame": "font5_100",
+    "advance": 6
+   },
+   "101": {
+    "frame": "font5_101",
+    "advance": 6
+   },
+   "102": {
+    "frame": "font5_102",
+    "advance": 5
+   },
+   "103": {
+    "frame": "font5_103",
+    "advance": 6
+   },
+   "104": {
+    "frame": "font5_104",
+    "advance": 6
+   },
+   "105": {
+    "frame": "font5_105",
+    "advance": 2
+   },
+   "106": {
+    "frame": "font5_106",
+    "advance": 4
+   },
+   "107": {
+    "frame": "font5_107",
+    "advance": 5
+   },
+   "108": {
+    "frame": "font5_108",
+    "advance": 3
+   },
+   "109": {
+    "frame": "font5_109",
+    "advance": 6
+   },
+   "110": {
+    "frame": "font5_110",
+    "advance": 6
+   },
+   "111": {
+    "frame": "font5_111",
+    "advance": 6
+   },
+   "112": {
+    "frame": "font5_112",
+    "advance": 6
+   },
+   "113": {
+    "frame": "font5_113",
+    "advance": 6
+   },
+   "114": {
+    "frame": "font5_114",
+    "advance": 5
+   },
+   "115": {
+    "frame": "font5_115",
+    "advance": 5
+   },
+   "116": {
+    "frame": "font5_116",
+    "advance": 5
+   },
+   "117": {
+    "frame": "font5_117",
+    "advance": 6
+   },
+   "118": {
+    "frame": "font5_118",
+    "advance": 6
+   },
+   "119": {
+    "frame": "font5_119",
+    "advance": 6
+   },
+   "120": {
+    "frame": "font5_120",
+    "advance": 6
+   },
+   "121": {
+    "frame": "font5_121",
+    "advance": 6
+   },
+   "122": {
+    "frame": "font5_122",
+    "advance": 6
+   },
+   "123": {
+    "frame": "font5_123",
+    "advance": 5
+   },
+   "124": {
+    "frame": "font5_124",
+    "advance": 2
+   },
+   "125": {
+    "frame": "font5_125",
+    "advance": 5
+   },
+   "126": {
+    "frame": "font5_126",
+    "advance": 6
+   }
+  }
+ },
+ "font7": {
+  "lineHeight": 12,
+  "capHeight": 9,
+  "outline": 1,
+  "glyphs": {
+   "33": {
+    "frame": "font7_33",
+    "advance": 3
+   },
+   "43": {
+    "frame": "font7_43",
+    "advance": 7
+   },
+   "45": {
+    "frame": "font7_45",
+    "advance": 7
+   },
+   "48": {
+    "frame": "font7_48",
+    "advance": 8
+   },
+   "49": {
+    "frame": "font7_49",
+    "advance": 8
+   },
+   "50": {
+    "frame": "font7_50",
+    "advance": 8
+   },
+   "51": {
+    "frame": "font7_51",
+    "advance": 8
+   },
+   "52": {
+    "frame": "font7_52",
+    "advance": 8
+   },
+   "53": {
+    "frame": "font7_53",
+    "advance": 8
+   },
+   "54": {
+    "frame": "font7_54",
+    "advance": 8
+   },
+   "55": {
+    "frame": "font7_55",
+    "advance": 8
+   },
+   "56": {
+    "frame": "font7_56",
+    "advance": 8
+   },
+   "57": {
+    "frame": "font7_57",
+    "advance": 8
+   }
+  }
+ }
+}
