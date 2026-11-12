@@ -149,15 +149,29 @@ export class BuildUI {
     const app = this.app, g = app.b, A = app.atlas, game = app.game!, s = game.state;
     const cam = app.camRect();
     const S = (tx: number, ty: number) => ({ x: Math.round(tx * T - cam.x), y: Math.round(ty * T - cam.y) });
-    // existing towers: faint range rings + active synergy links, so the defence layout reads while building
+    // existing towers touched by the current action (wall stroke next to them / radial menu): range ring (incl. the
+    // wall-embedded bonus the stroke would give) + their active flame links. Not all towers, to keep the map readable.
+    const focus = new Set<number>();
+    if (this.menu !== null) focus.add(this.menu);
+    if (this.paint) for (const b of s.buildings) {
+      if (!b.id.startsWith('tower')) continue;
+      if (this.paint.cells.some((c) => c.x >= b.x - 1 && c.x <= b.x + b.w && c.y >= b.y - 1 && c.y <= b.y + b.h)) focus.add(b.uid);
+    }
     for (const b of s.buildings) {
       const d = BUILDINGS[b.id];
-      if (!b.id.startsWith('tower') || !d.range) continue;
+      if (!focus.has(b.uid) || !d.range) continue;
       const cx = b.x + b.w / 2, cy = b.y + b.h / 2;
-      const sc = S(cx, cy);
-      if (sc.x < -160 || sc.y < -160 || sc.x > app.W + 160 || sc.y > app.H + 160) continue;
-      const range = d.range[b.level - 1] + (b.synergies.includes('embedded') ? BALANCE.synergy.embeddedRangeBonus : 0);
-      for (const p of ringPoints(cx, cy, range, 0.6)) { const q = S(p.x, p.y); A.drawC(g, 'ui_range_dot', q.x, q.y, { alpha: 0.85 }); }
+      let embedded = b.synergies.includes('embedded');
+      if (!embedded && this.paint && this.sel && BUILDINGS[this.sel].wallLike) {
+        const touch = (x: number, y: number) => (x === b.x - 1 || x === b.x + b.w) && y >= b.y && y < b.y + b.h || (y === b.y - 1 || y === b.y + b.h) && x >= b.x && x < b.x + b.w;
+        let sides = 0;
+        for (const o of s.buildings) if (BUILDINGS[o.id].wallLike && touch(o.x, o.y)) sides++;
+        for (const c of this.paint.cells) if (touch(c.x, c.y) && !game.canPlace(this.sel, c.x, c.y).reason?.startsWith('b')) sides++;
+        embedded = sides >= 2;
+      }
+      const range = d.range[b.level - 1] + (embedded ? BALANCE.synergy.embeddedRangeBonus : 0);
+      for (const p of ringPoints(cx, cy, range, 0.45)) { const q = S(p.x, p.y); A.drawC(g, 'ui_range_dot', q.x, q.y); }
+      if (embedded && !b.synergies.includes('embedded')) app.font.draw(g, app.tr('build.synergy.embedded'), S(cx, b.y).x, S(cx, b.y).y - 34, { align: 'center', color: COL.fire });
       if (b.synergies.includes('flame')) {
         const br = s.buildings.filter((o) => o.id === 'brazier' && o.lit && Math.hypot(o.x + 0.5 - cx, o.y + 0.5 - cy) <= BALANCE.synergy.flameRange + (b.w + 1) / 2);
         for (const o of br) for (const p of dottedLine(cx, cy, o.x + 0.5, o.y + 0.5, 0.35)) { const q = S(p.x, p.y); A.drawC(g, 'ui_link_dot', q.x, q.y); }
@@ -169,8 +183,8 @@ export class BuildUI {
       const plan = paintPlan(this.paint.cells, (c) => { const r = game.canPlace(id, c.x, c.y); return r.ok || r.reason === 'cost'; }, cost, s.res);
       this.paint.cells.forEach((c, i) => {
         const p = S(c.x, c.y);
-        A.draw(g, buildingIcon(id), p.x + 8, p.y + 16, { alpha: plan.ok[i] ? 0.7 : 0.35 });
-        A.draw(g, plan.ok[i] ? 'ui_build_ok' : 'ui_build_bad', p.x, p.y);
+        if (plan.ok[i]) { A.draw(g, buildingIcon(id), p.x + 8, p.y + 16, { alpha: 0.7 }); A.draw(g, 'ui_build_ok', p.x, p.y); }
+        else A.draw(g, 'ui_build_bad', p.x, p.y, { alpha: 0.8 });
       });
       costTag(app, plan.total, this.paint.px, this.paint.py - 22, plan.count);
     }

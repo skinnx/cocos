@@ -155,7 +155,9 @@ function nightMove(game: Game, bs: BotState, o: BotOpts): void {
   let tgt: { x: number; y: number } | null = null, bd = Infinity;
   for (const e of s.enemies) {
     const dh = Math.hypot(e.x - C, e.y - C);
-    if (dh > (o.build ? 7 : 9)) continue;
+    // defend the ring; sally out (autoplay) against Gloom sieging buildings from the dark
+    const sieging = o.extras && e.anim === 'attack' && dh < 12 && s.buildings.some((b) => b.uid === e.targetUid);
+    if (dh > (o.build ? 7 : 9) && !sieging) continue;
     if (dh < bd) { bd = dh; tgt = e; }
   }
   if (tgt) {

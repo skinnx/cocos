@@ -206,7 +206,7 @@ function moveToward(w: World, e: EnemyX, tx: number, ty: number, dt: number, sto
   const dx = tx - e.x, dy = ty - e.y, d = Math.hypot(dx, dy);
   const sp = speedOf(w, e);
   const sep = { x: 0, y: 0 };
-  if (e.stuckT < 0.5) separation(w, e, sep); // a snagged unit ignores the crowd until it is free
+  if (e.stuckT >= 0 && e.stuckT < 0.5) separation(w, e, sep); // a snagged unit (or one in its grace period) ignores the crowd
   let vx = 0, vy = 0, wx = 0, wy = 0;
   if (d > stopDist + 0.02) { vx = wx = (dx / d) * sp; vy = wy = (dy / d) * sp; if (e.anim !== 'move' && e.animT > 0.25) { e.anim = 'move'; e.animT = 0; } }
   vx += sep.x * sp * 0.6; vy += sep.y * sp * 0.6;
@@ -243,7 +243,10 @@ function ground(w: World, e: EnemyX, dt: number): void {
     if (f) { e.mode = EMODE.chase; chaseFoe(w, e, f, dt); return; }
   }
   // spitter: stop at range, prioritise towers then heroes
-  if (e.id === 'spitter') {
+  if (e.id === 'spitter' && w.r.enraged) {
+    // enraged spitters stop harassing and push for the Hearth
+    if (distToRect(e.x, e.y, hearthRect) <= e.range) { e.vx = 0; e.vy = 0; if (attackReady(e, dt)) hitBuilding(w, e, w.hearth); return; }
+  } else if (e.id === 'spitter') {
     let tgt: BuildingX | null = null, bd = Infinity;
     for (const b of w.s.buildings as BuildingX[]) {
       if (!isTower(b.id) || b.dead) continue;
@@ -276,8 +279,10 @@ function ground(w: World, e: EnemyX, dt: number): void {
   const cell = Math.floor(e.y) * n + Math.floor(e.x);
   let nx = field.next[cell];
   if (nx < 0 && field.dist[cell] !== 0) {
-    // off-field (e.g. pushed into a blocked cell): head to the Hearth directly
-    moveToward(w, e, CENTER, CENTER, dt);
+    // off-field (pushed into an obstacle or a sealed pocket): squeeze straight toward the Hearth, ignoring terrain
+    const dx = CENTER - e.x, dy = CENTER - e.y, d = Math.hypot(dx, dy) || 1, sp = speedOf(w, e);
+    e.vx = (dx / d) * sp; e.vy = (dy / d) * sp;
+    e.x += e.vx * dt; e.y += e.vy * dt;
     return;
   }
   if (nx < 0) nx = cell;
@@ -311,10 +316,18 @@ function ground(w: World, e: EnemyX, dt: number): void {
   e.mode = EMODE.path; e.snuffT = 0;
   let tx = (nx % n) + 0.5, ty = Math.floor(nx / n) + 0.5;
   // corner snag: if we barely moved last step, re-centre on our own cell first
-  if (e.stuckT > 0.5) { tx = (cell % n) + 0.5; ty = Math.floor(cell / n) + 0.5; if (Math.hypot(e.x - tx, e.y - ty) < 0.1) e.stuckT = 0; }
-  const ox = e.x, oy = e.y;
+  if (e.stuckT > 3) { // hopelessly wedged: slip through to the next waypoint
+    const dx = tx - e.x, dy = ty - e.y, d = Math.hypot(dx, dy), st = speedOf(w, e) * dt;
+    if (d <= st + 0.05) { e.x = tx; e.y = ty; e.stuckT = -1.5; } else { e.x += (dx / d) * st; e.y += (dy / d) * st; }
+    return;
+  }
+  if (e.stuckT > 0.5) { tx = (cell % n) + 0.5; ty = Math.floor(cell / n) + 0.5; if (Math.hypot(e.x - tx, e.y - ty) < 0.1) e.stuckT = -1.5; }
+  const d0 = Math.hypot(tx - e.x, ty - e.y);
   moveToward(w, e, tx, ty, dt);
-  if (Math.hypot(e.x - ox, e.y - oy) < speedOf(w, e) * dt * 0.25) e.stuckT += dt; else if (e.stuckT <= 0.5) e.stuckT = 0;
+  // progress check: no real approach toward the waypoint → accumulate stuck time
+  if (e.stuckT < 0) e.stuckT = Math.min(0, e.stuckT + dt);
+  else if (d0 - Math.hypot(tx - e.x, ty - e.y) < speedOf(w, e) * dt * 0.25) e.stuckT += dt;
+  else if (e.stuckT <= 0.5) e.stuckT = 0;
 }
 
 function explode(w: World, e: EnemyX): void {
@@ -368,7 +381,7 @@ function mossback(w: World, e: EnemyX, dt: number): void {
     for (let k = 0; k < M.shellSpawn; k++) {
       const a = (k / M.shellSpawn) * Math.PI * 2;
       const g = spawnEnemy(w, 'gloomling', e.x + Math.cos(a) * 1.4, e.y + Math.sin(a) * 1.4, { wave: true });
-      if (g && !posOk(w, g)) { g.x = e.x; g.y = e.y; }
+      if (g && !posOk(w, g)) { g.x = e.x; g.y = e.y; g.px = g.x; g.py = g.y; }
     }
     emit(w, { t: 'skill', hero: e.uid, skill: 'shell', x: e.x, y: e.y });
     return;
@@ -400,7 +413,7 @@ function posOk(w: World, e: EnemyX): boolean {
   const cx = Math.floor(e.x), cy = Math.floor(e.y);
   if (cx < 0 || cy < 0 || cx >= w.size || cy >= w.size) return false;
   const i = cy * w.size + cx;
-  return w.terrain[i] === 0 && !w.bldAt[i];
+  return w.terrain[i] === 0 && !w.bldAt[i] && w.fields.def.dist[i] !== Infinity;
 }
 
 function unlitAbilities(w: World, e: EnemyX, dt: number): void {

@@ -156,7 +156,10 @@ async function main() {
     check('tower placed via ghost + confirm', (await S()).towers === t0n + 1);
     // build-mode shot: wall card again, mid-stroke across an obstacle (green + red ghosts), tower range + synergy visible
     await tap(await cardC(0));
-    const c0 = await tileC(plan.hearth.x - 3.5, plan.hearth.y + 1.5), c1 = await tileC(plan.hearth.x + 3.5, plan.hearth.y + 1.5);
+    // stroke along the tower's row: crosses the Hearth / brazier / tower (red) and free grass (green), ends next to the
+    // tower so its range ring + flame link show
+    await ev(([x, y]) => { window.__EH.app.cam.x = x * 16; window.__EH.app.cam.y = y * 16 + 40; }, [plan.tower.x - 2, plan.tower.y]);
+    const c0 = await tileC(plan.tower.x - 6.5, plan.tower.y + 0.5), c1 = await tileC(plan.tower.x + 2.5, plan.tower.y + 0.5);
     await drag(c0, c1, { steps: 14, stepMs: 30, beforeEnd: async () => { await shot('build-mode'); await touch('touchCancel', []); return 'cancelled'; } });
     await ev(() => { window.__EH.app.build.paint = null; });
     await tapUI('buildDone');
@@ -175,31 +178,17 @@ async function main() {
     check('autoplay survives 2 full nights', s.survived >= 2, `phase=${s.phase} night=${s.night} survived=${s.survived} in ${((Date.now() - tA) / 1000).toFixed(0)}s`);
     await ev(() => { window.__EH.autoplay(false); window.__EH.speed(1); });
 
-    // ── 6. Dusk omens ───────────────────────────────────────────────────────
-    await ev(() => window.__EH.seed(11));
-    await ev(() => { window.__EH.cmd({ t: 'skipTutorial' }); window.__EH.goto('dusk', { night: 4 }); });
+    // ── 6. Dusk omens (same run: the bot's fort, explored island) ──────────
+    await ev(() => window.__EH.goto('dusk'));
     await waitFor('dusk', () => window.__EH.state().phase === 'dusk' && window.__EH.app.build.open);
     await sleep(900);
     s = await S();
-    check('goto dusk shows omens + build mode', s.phase === 'dusk' && s.buildMode);
+    check('dusk shows omens + build mode', s.phase === 'dusk' && s.buildMode);
     await shot('dusk-omens');
 
-    // ── 7. Night defense: a small fort, then night 3 ────────────────────────
-    await ev(() => {
-      const EH = window.__EH, g = EH.app.game, st = g.state;
-      EH.grant({ wood: 600, stone: 400, gold: 300 });
-      const h = st.buildings.find((b) => b.uid === st.hearthUid);
-      const ring = [];
-      const R = 4;
-      for (let x = h.x - R; x <= h.x + 1 + R; x++) { ring.push({ x, y: h.y - R }); ring.push({ x, y: h.y + 1 + R }); }
-      for (let y = h.y - R + 1; y <= h.y + R; y++) { ring.push({ x: h.x - R, y }); ring.push({ x: h.x + 1 + R, y }); }
-      EH.cmd({ t: 'paint', id: 'wall_wood', cells: ring.filter((c) => !(c.y === h.y + 1 + R && (c.x === h.x || c.x === h.x + 1))) });
-      for (const [dx, dy] of [[-2, -2], [3, -2], [-2, 3], [3, 3], [0, -3], [1, 4]]) EH.cmd({ t: 'place', id: 'tower_arrow', x: h.x + dx, y: h.y + dy });
-      EH.cmd({ t: 'place', id: 'trap_spikes', x: h.x, y: h.y + 1 + R + 1 });
-      EH.cmd({ t: 'place', id: 'trap_tar', x: h.x + 1, y: h.y + 1 + R + 1 });
-      EH.app.build.exit();
-      EH.goto('night', { night: 4 });
-    });
+    // ── 7. Night defense: the bot keeps playing the night, we frame the fight ─
+    await tapUI('startNight');
+    await ev(() => { window.__EH.autoplay(true); });
     await waitFor('night', () => window.__EH.state().phase === 'night');
     // pinch-zoom out one integer step (n-1, SPEC §3) to frame the fort and the dark beyond it
     await ev(() => { const s = window.__EH.state(); const h = s.buildings.find((b) => b.uid === s.hearthUid); window.__EH.app.zoomIdx = 0; window.__EH.camTo(h.x + 1, h.y + 1.5); window.__EH.speed(3); });
@@ -231,7 +220,7 @@ async function main() {
       await sleep(v.veiled + v.lit > 0 ? 30 : 200);
     }
     if (best) await shot('night-defense');
-    await ev(() => window.__EH.speed(1));
+    await ev(() => { window.__EH.speed(1); window.__EH.autoplay(false); });
     check('night: towers firing, damage numbers, veiled eyes on screen', best, best ? JSON.stringify(best) : 'conditions not met in 60s');
     if (!best) await shot('night-defense');
 

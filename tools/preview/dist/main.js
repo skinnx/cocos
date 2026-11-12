@@ -358,7 +358,7 @@
     mapSize: 56,
     simHz: 30,
     day: { seconds: 75, firstDaySeconds: 60, callNightGoldPerSec: 0.5, buildTimeScale: 0.25 },
-    night: { hpScale: (n) => 1 + 0.4 * Math.max(0, n - 5), enrageAfter: 120, enrageSpeedMul: 1.5, enrageDmgMul: 2, spawnWindow: (n) => Math.min(70, 35 + 4 * n), pulseMin: 6, pulseMax: 8 },
+    night: { hpScale: (n) => 1 + 0.4 * Math.max(0, n - 5), enrageAfter: 105, enrageSpeedMul: 1.5, enrageDmgMul: 3, spawnWindow: (n) => Math.min(70, 35 + 4 * n), pulseMin: 6, pulseMax: 8 },
     budget: (n) => 40 + 28 * n + 4 * n * n,
     bossBudgetMul: 0.6,
     endlessMul: 1.18,
@@ -1254,7 +1254,7 @@
     bomber: { id: "bomber", hp: 25, speed: 2, dmg: 60, rate: 1, range: 0.9, bldMul: 1, tags: 0, field: "default", cost: 10, firstNight: 7, radius: 0.3, weight: 1.2 },
     snuffer: { id: "snuffer", hp: 60, speed: 1.2, dmg: 8, rate: 1, range: 0.9, bldMul: 1, tags: 0, field: "snuff", cost: 16, firstNight: 8, radius: 0.34, weight: 1 },
     mossback: { id: "mossback", hp: 1e3, speed: 0.5, dmg: 40, rate: 1, range: 1.6, bldMul: 1, tags: TAG_ARMORED, field: "straight", cost: 0, firstNight: 5, radius: 1.1, weight: 0, boss: true },
-    unlit: { id: "unlit", hp: 6e3, speed: 0.7, dmg: 25, rate: 1, range: 1.3, bldMul: 1, tags: 0, field: "default", cost: 0, firstNight: 10, radius: 0.45, weight: 0, boss: true },
+    unlit: { id: "unlit", hp: 6500, speed: 1, dmg: 25, rate: 1, range: 1.3, bldMul: 1, tags: 0, field: "default", cost: 0, firstNight: 10, radius: 0.45, weight: 0, boss: true },
     militia: { id: "militia", hp: 50, speed: 2.2, dmg: 6, rate: 1, range: 1.1, bldMul: 1, tags: 0, field: "default", cost: 0, firstNight: 99, radius: 0.3, weight: 0 }
   };
   var WAVE_ENEMIES = ["gloomling", "skitter", "spitter", "brute", "wisp", "bomber", "snuffer"];
@@ -2052,7 +2052,7 @@
   // assets/scripts/core/sim/Economy.ts
   var ZERO = { wood: 0, stone: 0, gold: 0 };
   function scaleRes(r, m) {
-    return { wood: Math.ceil(r.wood * m - 1e-9), stone: Math.ceil(r.stone * m - 1e-9), gold: Math.ceil(r.gold * m - 1e-9) };
+    return { wood: Math.ceil(r.wood * m - 1e-9) + 0, stone: Math.ceil(r.stone * m - 1e-9) + 0, gold: Math.ceil(r.gold * m - 1e-9) + 0 };
   }
   function tinkerInSquad(w) {
     return w.s.heroes.some((h) => h.id === "tinker");
@@ -2901,7 +2901,8 @@
       combatT: 99,
       twinT: -1,
       dead: false,
-      tgt: 0
+      tgt: 0,
+      stuckT: 0
     };
     h.level = Math.min(5, Math.max(1, level));
     if (h.level > 1) h.xp = BALANCE.squad.xp[h.level - 2];
@@ -3004,7 +3005,18 @@
         continue;
       }
       if (engageOrIdle(w, h, spd, dt, { sx, sy, ld })) continue;
+      const ox = h.x, oy = h.y;
       steerTo(w, h, sx, sy, spd * BALANCE.squad.followCatchup, dt, hs);
+      if (Math.hypot(h.x - ox, h.y - oy) < spd * dt * 0.2 && Math.hypot(sx - h.x, sy - h.y) > 1.5) h.stuckT += dt;
+      else h.stuckT = 0;
+      if (h.stuckT > 1.5) {
+        h.stuckT = 0;
+        h.x = ld.x;
+        h.y = ld.y;
+        h.px = h.x;
+        h.py = h.y;
+        emit(w, { t: "teleport", uid: h.uid, x: h.x, y: h.y });
+      }
     }
     const rateMul = hornActive(w) ? BALANCE.horn.rateMul : 1;
     for (const h of hs) {
@@ -3298,7 +3310,7 @@
   function harvest(w, h, dt) {
     h.harvestCd -= dt;
     if (h.harvestCd > 0) return;
-    if (anyEnemyNear(w, h.x, h.y, Math.max(HEROES[h.id].range, 2.5))) return;
+    if (anyEnemyNear(w, h.x, h.y, Math.max(HEROES[h.id].range + 0.4, 1.5))) return;
     const H = BALANCE.harvest;
     let best = -1, bd = Infinity;
     const cx = Math.floor(h.x), cy = Math.floor(h.y);
@@ -3532,6 +3544,7 @@
   function enemyDmg(w, e) {
     let d = e.dmg;
     if (inSanctum(w, e.x, e.y)) d *= 0.8;
+    if (w.r.enraged && e.wave) d *= BALANCE.night.enrageDmgMul;
     return d;
   }
   function findFoe(w, e, range, los) {
@@ -3605,9 +3618,7 @@
     return true;
   }
   function bldDamage(w, e) {
-    let d = enemyDmg(w, e) * ENEMIES[e.id].bldMul;
-    if (w.r.enraged && e.wave) d *= BALANCE.night.enrageDmgMul;
-    return d;
+    return enemyDmg(w, e) * ENEMIES[e.id].bldMul;
   }
   function hitBuilding(w, e, b) {
     e.targetUid = b.uid;
@@ -3707,7 +3718,7 @@
     const dx = tx - e.x, dy = ty - e.y, d = Math.hypot(dx, dy);
     const sp = speedOf(w, e);
     const sep = { x: 0, y: 0 };
-    if (e.stuckT < 0.5) separation(w, e, sep);
+    if (e.stuckT >= 0 && e.stuckT < 0.5) separation(w, e, sep);
     let vx = 0, vy = 0, wx = 0, wy = 0;
     if (d > stopDist + 0.02) {
       vx = wx = dx / d * sp;
@@ -3760,7 +3771,14 @@
         return;
       }
     }
-    if (e.id === "spitter") {
+    if (e.id === "spitter" && w.r.enraged) {
+      if (distToRect(e.x, e.y, hearthRect) <= e.range) {
+        e.vx = 0;
+        e.vy = 0;
+        if (attackReady(e, dt)) hitBuilding(w, e, w.hearth);
+        return;
+      }
+    } else if (e.id === "spitter") {
       let tgt = null, bd = Infinity;
       for (const b of w.s.buildings) {
         if (!isTower(b.id) || b.dead) continue;
@@ -3817,7 +3835,11 @@
     const cell = Math.floor(e.y) * n + Math.floor(e.x);
     let nx = field.next[cell];
     if (nx < 0 && field.dist[cell] !== 0) {
-      moveToward(w, e, CENTER, CENTER, dt);
+      const dx = CENTER - e.x, dy = CENTER - e.y, d = Math.hypot(dx, dy) || 1, sp = speedOf(w, e);
+      e.vx = dx / d * sp;
+      e.vy = dy / d * sp;
+      e.x += e.vx * dt;
+      e.y += e.vy * dt;
       return;
     }
     if (nx < 0) nx = cell;
@@ -3862,14 +3884,27 @@
     e.mode = EMODE.path;
     e.snuffT = 0;
     let tx = nx % n + 0.5, ty = Math.floor(nx / n) + 0.5;
+    if (e.stuckT > 3) {
+      const dx = tx - e.x, dy = ty - e.y, d = Math.hypot(dx, dy), st2 = speedOf(w, e) * dt;
+      if (d <= st2 + 0.05) {
+        e.x = tx;
+        e.y = ty;
+        e.stuckT = -1.5;
+      } else {
+        e.x += dx / d * st2;
+        e.y += dy / d * st2;
+      }
+      return;
+    }
     if (e.stuckT > 0.5) {
       tx = cell % n + 0.5;
       ty = Math.floor(cell / n) + 0.5;
-      if (Math.hypot(e.x - tx, e.y - ty) < 0.1) e.stuckT = 0;
+      if (Math.hypot(e.x - tx, e.y - ty) < 0.1) e.stuckT = -1.5;
     }
-    const ox = e.x, oy = e.y;
+    const d0 = Math.hypot(tx - e.x, ty - e.y);
     moveToward(w, e, tx, ty, dt);
-    if (Math.hypot(e.x - ox, e.y - oy) < speedOf(w, e) * dt * 0.25) e.stuckT += dt;
+    if (e.stuckT < 0) e.stuckT = Math.min(0, e.stuckT + dt);
+    else if (d0 - Math.hypot(tx - e.x, ty - e.y) < speedOf(w, e) * dt * 0.25) e.stuckT += dt;
     else if (e.stuckT <= 0.5) e.stuckT = 0;
   }
   function explode(w, e) {
@@ -3954,6 +3989,8 @@
         if (g && !posOk(w, g)) {
           g.x = e.x;
           g.y = e.y;
+          g.px = g.x;
+          g.py = g.y;
         }
       }
       emit(w, { t: "skill", hero: e.uid, skill: "shell", x: e.x, y: e.y });
@@ -3993,7 +4030,7 @@
     const cx = Math.floor(e.x), cy = Math.floor(e.y);
     if (cx < 0 || cy < 0 || cx >= w.size || cy >= w.size) return false;
     const i = cy * w.size + cx;
-    return w.terrain[i] === 0 && !w.bldAt[i];
+    return w.terrain[i] === 0 && !w.bldAt[i] && w.fields.def.dist[i] !== Infinity;
   }
   function unlitAbilities(w, e, dt) {
     const U = UNLIT;
@@ -4404,6 +4441,15 @@
           i--;
           continue;
         }
+        continue;
+      }
+      if (b.id === "gate") {
+        let open = false;
+        for (const h of w.s.heroes) if (!h.dead && distToRect(h.x, h.y, b) < 0.9) {
+          open = true;
+          break;
+        }
+        b.open = open;
         continue;
       }
       if (b.id === "workshop" && night) {
@@ -5056,8 +5102,11 @@
     computeStaticLight(w);
     updateLight(w);
     smoothLightAlpha(w, 0, true);
+    const fd = o.r.fieldDirty, sd = o.r.snuffDirty, fl = o.r.fieldLastStep;
     recomputeFields(w, "restore");
-    w.r.fieldLastStep = o.r.fieldLastStep;
+    w.r.fieldDirty = fd;
+    w.r.snuffDirty = sd;
+    w.r.fieldLastStep = fl;
     updateWallMasks(w);
     updateTimeScale(w);
     w.events.length = 0;
@@ -6536,17 +6585,30 @@
       const app2 = this.app, g = app2.b, A = app2.atlas, game = app2.game, s = game.state;
       const cam = app2.camRect();
       const S2 = (tx, ty) => ({ x: Math.round(tx * T - cam.x), y: Math.round(ty * T - cam.y) });
+      const focus = /* @__PURE__ */ new Set();
+      if (this.menu !== null) focus.add(this.menu);
+      if (this.paint) for (const b of s.buildings) {
+        if (!b.id.startsWith("tower")) continue;
+        if (this.paint.cells.some((c) => c.x >= b.x - 1 && c.x <= b.x + b.w && c.y >= b.y - 1 && c.y <= b.y + b.h)) focus.add(b.uid);
+      }
       for (const b of s.buildings) {
         const d = BUILDINGS[b.id];
-        if (!b.id.startsWith("tower") || !d.range) continue;
+        if (!focus.has(b.uid) || !d.range) continue;
         const cx = b.x + b.w / 2, cy = b.y + b.h / 2;
-        const sc = S2(cx, cy);
-        if (sc.x < -160 || sc.y < -160 || sc.x > app2.W + 160 || sc.y > app2.H + 160) continue;
-        const range = d.range[b.level - 1] + (b.synergies.includes("embedded") ? BALANCE.synergy.embeddedRangeBonus : 0);
-        for (const p of ringPoints(cx, cy, range, 0.6)) {
-          const q = S2(p.x, p.y);
-          A.drawC(g, "ui_range_dot", q.x, q.y, { alpha: 0.85 });
+        let embedded = b.synergies.includes("embedded");
+        if (!embedded && this.paint && this.sel && BUILDINGS[this.sel].wallLike) {
+          const touch = (x, y) => (x === b.x - 1 || x === b.x + b.w) && y >= b.y && y < b.y + b.h || (y === b.y - 1 || y === b.y + b.h) && x >= b.x && x < b.x + b.w;
+          let sides = 0;
+          for (const o of s.buildings) if (BUILDINGS[o.id].wallLike && touch(o.x, o.y)) sides++;
+          for (const c of this.paint.cells) if (touch(c.x, c.y) && !game.canPlace(this.sel, c.x, c.y).reason?.startsWith("b")) sides++;
+          embedded = sides >= 2;
         }
+        const range = d.range[b.level - 1] + (embedded ? BALANCE.synergy.embeddedRangeBonus : 0);
+        for (const p of ringPoints(cx, cy, range, 0.45)) {
+          const q = S2(p.x, p.y);
+          A.drawC(g, "ui_range_dot", q.x, q.y);
+        }
+        if (embedded && !b.synergies.includes("embedded")) app2.font.draw(g, app2.tr("build.synergy.embedded"), S2(cx, b.y).x, S2(cx, b.y).y - 34, { align: "center", color: COL.fire });
         if (b.synergies.includes("flame")) {
           const br = s.buildings.filter((o) => o.id === "brazier" && o.lit && Math.hypot(o.x + 0.5 - cx, o.y + 0.5 - cy) <= BALANCE.synergy.flameRange + (b.w + 1) / 2);
           for (const o of br) for (const p of dottedLine(cx, cy, o.x + 0.5, o.y + 0.5, 0.35)) {
@@ -6563,8 +6625,10 @@
         }, cost, s.res);
         this.paint.cells.forEach((c, i) => {
           const p = S2(c.x, c.y);
-          A.draw(g, buildingIcon(id), p.x + 8, p.y + 16, { alpha: plan.ok[i] ? 0.7 : 0.35 });
-          A.draw(g, plan.ok[i] ? "ui_build_ok" : "ui_build_bad", p.x, p.y);
+          if (plan.ok[i]) {
+            A.draw(g, buildingIcon(id), p.x + 8, p.y + 16, { alpha: 0.7 });
+            A.draw(g, "ui_build_ok", p.x, p.y);
+          } else A.draw(g, "ui_build_bad", p.x, p.y, { alpha: 0.8 });
         });
         costTag(app2, plan.total, this.paint.px, this.paint.py - 22, plan.count);
       }
@@ -7569,6 +7633,22 @@
       game.cmd({ t: "move", dir: { x: 0, y: 0 } });
       return goal(cx, cy);
     }
+    if (wk.lx !== void 0 && Math.hypot(ld.x - wk.lx, ld.y - (wk.ly ?? 0)) < 0.01) wk.still = (wk.still ?? 0) + 1;
+    else wk.still = 0;
+    wk.lx = ld.x;
+    wk.ly = ld.y;
+    if ((wk.still ?? 0) > 12) {
+      wk.recenter = true;
+      wk.still = 0;
+    }
+    if (wk.recenter) {
+      const rx = cx + 0.5 - ld.x, ry = cy + 0.5 - ld.y, rd = Math.hypot(rx, ry);
+      if (rd < 0.08) wk.recenter = false;
+      else {
+        game.cmd({ t: "move", dir: { x: rx / rd, y: ry / rd } });
+        return false;
+      }
+    }
     const c = wk.path[0];
     const tx = c % n + 0.5, ty = (c / n | 0) + 0.5;
     const dx = tx - ld.x, dy = ty - ld.y, d = Math.hypot(dx, dy);
@@ -7717,6 +7797,7 @@
     const wantStone = needStone(s);
     if (!node) {
       let best = null, bd = Infinity;
+      const guards = s.enemies.filter((e) => Math.hypot(e.x - C, e.y - C) > 7);
       for (const nd2 of s.nodes) {
         if (nd2.hp <= 0 || nd2.kind === "stump" || nd2.kind === "bush") continue;
         const isTree = nd2.kind === "pine" || nd2.kind === "oak";
@@ -7724,6 +7805,7 @@
         if (!isTree && !isRock && nd2.kind !== "ore") continue;
         const dh = Math.hypot(nd2.x + 0.5 - C, nd2.y + 0.5 - C);
         if (dh > 16 || dh < 6.5) continue;
+        if (guards.some((e) => Math.hypot(e.x - nd2.x - 0.5, e.y - nd2.y - 0.5) < 3)) continue;
         let d = Math.hypot(nd2.x + 0.5 - ld.x, nd2.y + 0.5 - ld.y) + dh * 0.5;
         if (wantStone && isTree) d += 6;
         if (!wantStone && isRock) d += 4;
@@ -7754,7 +7836,8 @@
     let tgt = null, bd = Infinity;
     for (const e of s.enemies) {
       const dh = Math.hypot(e.x - C, e.y - C);
-      if (dh > (o.build ? 7 : 9)) continue;
+      const sieging = o.extras && e.anim === "attack" && dh < 12 && s.buildings.some((b) => b.uid === e.targetUid);
+      if (dh > (o.build ? 7 : 9) && !sieging) continue;
       if (dh < bd) {
         bd = dh;
         tgt = e;
@@ -8274,7 +8357,10 @@
         this.audio.music("day");
         this.fx.banner(this.tr("phase.day") + " " + s.night, void 0, COL.gold, 1.6);
       }
-      if (p === "dusk") this.omensOpen = true;
+      if (p === "dusk") {
+        this.omensOpen = true;
+        this.fx.banners = [];
+      }
       if (p === "dawn") this.audio.music("day");
       if (p === "victory") {
         this.audio.sfx("victory");
@@ -8310,7 +8396,7 @@
             if (ev.target === s.hearthUid) vib(20);
           } else {
             const big = ev.crit || ev.shatter;
-            fx.number(String(Math.round(ev.amount)) + (big ? "!" : ""), p.x, p.y - 12, col, big || ev.amount >= 10 ? 7 : 5);
+            fx.number(String(Math.round(ev.amount)) + (big ? "!" : ""), p.x, p.y - 12, col, 7);
             fx.anim("fx_hit", p.x, p.y - 6, 20);
           }
           if (ev.crit) fx.stop(0.04);

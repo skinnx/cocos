@@ -77,6 +77,12 @@ export function updateBuildings(w: World, dt: number): void {
       if (b.burnT <= 0) { destroyBuilding(w, b); i--; continue; }
       continue;
     }
+    if (b.id === 'gate') { // swings open while a hero passes (heroes walk through gates)
+      let open = false;
+      for (const h of w.s.heroes as HeroX[]) if (!h.dead && distToRect(h.x, h.y, b) < 0.9) { open = true; break; }
+      b.open = open;
+      continue;
+    }
     if (b.id === 'workshop' && night) { workshopRepair(w, b, dt); continue; }
     if (b.id === 'tower_frost') { frostAura(w, b, dt); continue; }
     if (isTower(b.id) || b.id === 'hearth') towerFire(w, b, dt);

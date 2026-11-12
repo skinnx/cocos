@@ -265,7 +265,7 @@ export class App {
     if (p === 'night') { this.fx.banner(this.tr('banner.night', { n: s.night }), undefined, COL.purple); this.audio.sfx('horn_night'); this.audio.music(s.boss ? 'boss' : 'night'); }
     if (p === 'day' && prev === 'dawn') this.saveRun(); // SPEC §2.2: auto-save once the dawn boon is chosen
     if (p === 'day' && prev) { this.audio.music('day'); this.fx.banner(this.tr('phase.day') + ' ' + s.night, undefined, COL.gold, 1.6); }
-    if (p === 'dusk') this.omensOpen = true;
+    if (p === 'dusk') { this.omensOpen = true; this.fx.banners = []; }
     if (p === 'dawn') this.audio.music('day');
     if (p === 'victory') { this.audio.sfx('victory'); this.fx.fade = 1; }
     if (p === 'defeat') { this.audio.sfx('defeat'); this.fx.fade = 1; }
@@ -290,7 +290,7 @@ export class App {
         if (s.buildings.some((b) => b.uid === ev.target)) { this.world.attacked.set(ev.target, 3); if (ev.target === s.hearthUid) vib(20); }
         else {
           const big = ev.crit || ev.shatter;
-          fx.number(String(Math.round(ev.amount)) + (big ? '!' : ''), p.x, p.y - 12, col, big || ev.amount >= 10 ? 7 : 5);
+          fx.number(String(Math.round(ev.amount)) + (big ? '!' : ''), p.x, p.y - 12, col, 7);
           fx.anim('fx_hit', p.x, p.y - 6, 20);
         }
         if (ev.crit) fx.stop(0.04);
