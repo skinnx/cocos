@@ -19,7 +19,9 @@ export function glyphName(font: FontId, code: number): string {
 
 /** Strip Vietnamese diacritics etc. so text renders with the ASCII bitmap font. */
 export function toAscii(s: string): string {
-  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').replace(/[^\x20-\x7e\n]/g, '?');
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D')
+    .replace(/[–—−]/g, '-').replace(/[•·×]/g, '*').replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/…/g, '...')
+    .replace(/[^\x20-\x7e\n]/g, '?');
 }
 
 export interface Glyph { name: string; x: number; y: number }
