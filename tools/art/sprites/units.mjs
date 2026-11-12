@@ -685,7 +685,7 @@ function enemySprites() {
   const flare = recolor(wi, { L: 'w', M: 'L', m: 'M' });
   anim('wisp', 'attack', [stretch(wi, 9).shift(-1, 0), dots(flare.shift(1, 0), [[2, 14, 'm'], [3, 14, 'm'], [6, 14, 'm']])]);
   // bomber: waddle with sputtering fuse; attack = swell, then white-hot flash before the blast
-  const bo = pad(BOMBER, 1, 1, 1, 0);
+  const bo = pad(recolor(BOMBER, { n: 'm', m: 'n' }), 1, 1, 1, 0);
   const fuse2 = (p) => dots(p.clone(), [[11, 2, 'y'], [10, 3, 'z'], [12, 3, 'z'], [11, 3, 'y'], [12, 2, 'z']]);
   anim('bomber', 'move', [bo, fuse2(squash(bo, 10)), dots(bo.clone().rect(0, 16, 18, 1, '.'), [[4, 16, 'm'], [5, 16, 'm'], [12, 16, 'm'], [13, 16, 'm']]), fuse2(stretch(bo, 10))]);
   const swell = stretch(bo, 10);
