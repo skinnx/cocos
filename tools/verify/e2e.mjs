@@ -1,0 +1,312 @@
+#!/usr/bin/env node
+// E2E for the web preview (SPEC §13.6): Playwright Chromium at 390×844 (DPR 2 for the saved shots).
+// Fails on any console error / pageerror / missing sprite. Drives Title → Game, touch-drag movement, Build mode
+// (paint a wall line, place a tower), autoplay through 2 full nights, __EH.goto to boss night / dawn / defeat,
+// barracks, continue-after-reload; saves the 9 shots to docs/shots/<name>.png; measures avg FPS with ~150 enemies.
+//   --no-build   reuse tools/preview/dist      --headed  show the browser      --keep  leave server running on fail
+import { createRequire } from 'node:module';
+import { execSync } from 'node:child_process';
+import { mkdirSync, statSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
+const SHOTS = join(ROOT, 'docs', 'shots');
+const args = process.argv.slice(2);
+const FPS_GATE = 30;
+const SHOT_NAMES = ['title', 'day-explore', 'build-mode', 'dusk-omens', 'night-defense', 'boss', 'dawn-boons', 'barracks', 'defeat'];
+
+async function loadPlaywright() {
+  try { return await import('playwright'); } catch { /* not local */ }
+  const groot = execSync('npm root -g', { encoding: 'utf8' }).trim();
+  return createRequire(join(groot, 'noop.js'))('playwright');
+}
+
+const log = (...a) => console.log('[e2e]', ...a);
+const checks = [];
+function check(name, ok, detail = '') { checks.push({ name, ok: !!ok, detail }); log(`${ok ? 'ok  ' : 'FAIL'} ${name}${detail ? ' — ' + detail : ''}`); }
+
+async function main() {
+  if (!args.includes('--no-build')) { const { buildPreview } = await import('../preview/build.mjs'); await buildPreview({ quiet: true }); }
+  const { startServer } = await import('../preview/serve.mjs');
+  let server;
+  let port = Number(process.env.E2E_PORT) || 4178;
+  for (let i = 0; i < 10 && !server; i++) { try { server = await startServer(port, { quiet: true }); } catch { port++; } }
+  if (!server) throw new Error('could not start the preview server');
+  const base = `http://127.0.0.1:${port}/?debug=1`;
+  log('serving', base);
+
+  const pw = await loadPlaywright();
+  const browser = await pw.chromium.launch(args.includes('--headed') ? { headless: false } : undefined);
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+  const page = await context.newPage();
+  const consoleErrors = [];
+  page.on('console', (m) => { if (m.type() === 'error') consoleErrors.push(m.text()); });
+  page.on('pageerror', (e) => consoleErrors.push(`pageerror: ${e.message}`));
+  const cdp = await context.newCDPSession(page);
+
+  // ── helpers ───────────────────────────────────────────────────────────────
+  const ev = (fn, arg) => page.evaluate(fn, arg);
+  const waitFor = async (what, fn, arg, timeout = 30000, every = 100) => {
+    const t0 = Date.now();
+    for (;;) {
+      const v = await ev(fn, arg).catch(() => null);
+      if (v) return v;
+      if (Date.now() - t0 > timeout) throw new Error(`timeout waiting for ${what}`);
+      await page.waitForTimeout(every);
+    }
+  };
+  const sleep = (ms) => page.waitForTimeout(ms);
+  const touch = (type, pts) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: pts.map((p) => ({ x: p.x, y: p.y, id: p.id ?? 0, radiusX: 4, radiusY: 4, force: 1 })) });
+  async function tap(p) { await touch('touchStart', [p]); await sleep(40); await touch('touchEnd', []); await sleep(60); }
+  async function drag(from, to, { steps = 12, holdMs = 0, stepMs = 16, beforeEnd } = {}) {
+    await touch('touchStart', [from]);
+    for (let i = 1; i <= steps; i++) { await touch('touchMove', [{ x: from.x + ((to.x - from.x) * i) / steps, y: from.y + ((to.y - from.y) * i) / steps }]); await sleep(stepMs); }
+    if (holdMs) { const t0 = Date.now(); while (Date.now() - t0 < holdMs) { await touch('touchMove', [to]); await sleep(50); } }
+    if (beforeEnd) await beforeEnd();
+    await touch('touchEnd', []);
+    await sleep(60);
+  }
+  const hit = async (id) => { const p = await ev((i) => window.__EH.hit(i), id); if (!p) throw new Error(`UI element "${id}" not on screen`); return p; };
+  const tapUI = async (id) => tap(await hit(id));
+  const tileC = (x, y) => ev(([a, b]) => window.__EH.tileToClient(a, b), [x, y]);
+  const shot = async (name) => {
+    await sleep(120);
+    const path = join(SHOTS, `${name}.png`);
+    await page.screenshot({ path });
+    log(`shot ${name}.png (${(statSync(path).size / 1024).toFixed(0)} KB)`);
+  };
+  const S = () => ev(() => { const s = window.__EH.state(); if (!s) return null; const L = s.heroes.find((h) => h.leader) || s.heroes[0];
+    return { phase: s.phase, night: s.night, buildMode: s.buildMode, res: { ...s.res }, enemies: s.enemies.length, buildings: s.buildings.length,
+      walls: s.buildings.filter((b) => b.id === 'wall_wood').length, towers: s.buildings.filter((b) => b.id === 'tower_arrow').length,
+      leader: L ? { x: L.x, y: L.y } : null, boon: s.boonOffer ? s.boonOffer.length : 0, boss: s.boss, survived: s.stats.nightsSurvived,
+      projectiles: s.projectiles.length, veiled: s.enemies.filter((e) => e.status.veiled).length }; });
+
+  mkdirSync(SHOTS, { recursive: true });
+  try {
+    // ── 1. Title ────────────────────────────────────────────────────────────
+    await page.goto(base);
+    await ev(() => { try { localStorage.clear(); } catch { /* */ } });
+    await page.reload();
+    await waitFor('__EH + title', () => window.__EH && window.__EH.app.screen === 'title' && window.__EH.app.atlas.img);
+    await sleep(900); // fade-in
+    check('title screen reached', true);
+    await shot('title');
+
+    // ── 2. Title → game ─────────────────────────────────────────────────────
+    await tapUI('play');
+    await waitFor('game screen', () => window.__EH.app.screen === 'game' && window.__EH.state());
+    await ev(() => window.__EH.cmd({ t: 'skipTutorial' }));
+    let s = await S();
+    check('Title → Game via Play button', s && s.phase === 'day', `phase=${s?.phase}`);
+
+    // ── 3. touch-drag to move (floating joystick) ───────────────────────────
+    const before = s.leader;
+    await drag({ x: 195, y: 620 }, { x: 255, y: 640 }, { holdMs: 1400 });
+    s = await S();
+    const moved = Math.hypot(s.leader.x - before.x, s.leader.y - before.y);
+    check('touch drag moves the squad leader', moved > 0.8, `moved ${moved.toFixed(2)} tiles`);
+    await drag({ x: 195, y: 620 }, { x: 150, y: 560 }, { holdMs: 900 });
+    await sleep(1200);
+    await shot('day-explore');
+
+    // ── 4. Build mode: paint a wall line, place a tower ─────────────────────
+    await ev(() => window.__EH.grant({ wood: 300, stone: 200, gold: 100 }));
+    await tapUI('hammer');
+    await waitFor('build mode', () => window.__EH.state().buildMode && window.__EH.app.build.open);
+    check('Build mode opens from hammer button', true);
+    const plan = await ev(() => {
+      const app = window.__EH.app, g = app.game, s = g.state;
+      const h = s.buildings.find((b) => b.uid === s.hearthUid);
+      app.cam.x = (h.x + 1) * 16; app.cam.y = (h.y + 1) * 16 + 24;
+      // wall line: first row south of the hearth with 5+ consecutive placeable cells
+      let wall = null;
+      for (let dy = 3; dy <= 5 && !wall; dy++) for (let x0 = h.x - 4; x0 <= h.x + 1 && !wall; x0++) {
+        let ok = true; for (let i = 0; i < 6; i++) if (!g.canPlace('wall_wood', x0 + i, h.y + dy).ok) ok = false;
+        if (ok) wall = { x0, y: h.y + dy, n: 6 };
+      }
+      // tower: free tile adjacent (<=2) to a lit brazier
+      const br = s.buildings.find((b) => b.id === 'brazier' && b.lit) || s.buildings.find((b) => b.id === 'brazier');
+      let tower = null;
+      const around = br ? [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, 1], [2, 0], [-2, 0], [0, 2], [0, -2]] : [];
+      for (const [dx, dy] of around) if (!tower && g.canPlace('tower_arrow', br.x + dx, br.y + dy).ok) tower = { x: br.x + dx, y: br.y + dy };
+      if (!tower) for (let r = 2; r < 6 && !tower; r++) for (let dx = -r; dx <= r && !tower; dx++) if (g.canPlace('tower_arrow', h.x + dx, h.y - r).ok) tower = { x: h.x + dx, y: h.y - r };
+      return { wall, tower, hearth: { x: h.x, y: h.y } };
+    });
+    check('found a placeable wall row + tower tile', plan.wall && plan.tower, JSON.stringify(plan));
+    await sleep(100);
+    // select the wood wall card (defense tab, card 0) then paint by drag
+    const cardC = async (i) => ev((k) => window.__EH.artToClient(4 + k * 52 + 25, window.__EH.app.build.drawerTop + 16 + 6 + 30), i);
+    await tap(await cardC(0));
+    check('wall card selected', await ev(() => window.__EH.app.build.sel === 'wall_wood'));
+    const w0 = (await S()).walls;
+    const a = await tileC(plan.wall.x0 + 0.5, plan.wall.y + 0.5), b = await tileC(plan.wall.x0 + plan.wall.n - 0.5, plan.wall.y + 0.5);
+    await drag(a, b, { steps: 16, stepMs: 30 });
+    await sleep(200);
+    const w1 = (await S()).walls;
+    check('paint drag places a wall line', w1 - w0 >= 5, `${w1 - w0} walls painted`);
+    // tower: select arrow tower (card 3), tap ghost, confirm ✓
+    await tap(await cardC(3));
+    check('arrow tower card selected', await ev(() => window.__EH.app.build.sel === 'tower_arrow'));
+    await tap(await tileC(plan.tower.x + 0.5, plan.tower.y + 0.5));
+    await waitFor('tower ghost', () => !!window.__EH.app.build.ghost);
+    const t0n = (await S()).towers;
+    await sleep(100);
+    await tapUI('ghostOk');
+    await sleep(200);
+    check('tower placed via ghost + confirm', (await S()).towers === t0n + 1);
+    // build-mode shot: wall card again, mid-stroke across an obstacle (green + red ghosts), tower range + synergy visible
+    await tap(await cardC(0));
+    const c0 = await tileC(plan.hearth.x - 3.5, plan.hearth.y + 1.5), c1 = await tileC(plan.hearth.x + 3.5, plan.hearth.y + 1.5);
+    await drag(c0, c1, { steps: 14, stepMs: 30, beforeEnd: async () => { await shot('build-mode'); await touch('touchCancel', []); } });
+    await ev(() => { window.__EH.app.build.paint = null; });
+    await tapUI('buildDone');
+    check('Build mode closes', !(await S()).buildMode);
+
+    // ── 5. autoplay through 2 full nights ───────────────────────────────────
+    await ev(() => { window.__EH.autoplay(true); window.__EH.speed(8); });
+    let tookNight = false;
+    const tA = Date.now();
+    for (;;) {
+      s = await S();
+      if (!s || s.phase === 'defeat' || s.survived >= 2 || Date.now() - tA > 240000) break;
+      if (s.phase === 'night' && s.night === 2 && !tookNight && s.enemies > 6) tookNight = true;
+      await sleep(250);
+    }
+    check('autoplay survives 2 full nights', s.survived >= 2, `phase=${s.phase} night=${s.night} survived=${s.survived} in ${((Date.now() - tA) / 1000).toFixed(0)}s`);
+    await ev(() => { window.__EH.autoplay(false); window.__EH.speed(1); });
+
+    // ── 6. Dusk omens ───────────────────────────────────────────────────────
+    await ev(() => window.__EH.seed(11));
+    await ev(() => { window.__EH.cmd({ t: 'skipTutorial' }); window.__EH.goto('dusk', { night: 4 }); });
+    await waitFor('dusk', () => window.__EH.state().phase === 'dusk' && window.__EH.app.build.open);
+    await sleep(900);
+    s = await S();
+    check('goto dusk shows omens + build mode', s.phase === 'dusk' && s.buildMode);
+    await shot('dusk-omens');
+
+    // ── 7. Night defense: a small fort, then night 3 ────────────────────────
+    await ev(() => {
+      const EH = window.__EH, g = EH.app.game, st = g.state;
+      EH.grant({ wood: 600, stone: 400, gold: 300 });
+      const h = st.buildings.find((b) => b.uid === st.hearthUid);
+      const ring = [];
+      const R = 4;
+      for (let x = h.x - R; x <= h.x + 1 + R; x++) { ring.push({ x, y: h.y - R }); ring.push({ x, y: h.y + 1 + R }); }
+      for (let y = h.y - R + 1; y <= h.y + R; y++) { ring.push({ x: h.x - R, y }); ring.push({ x: h.x + 1 + R, y }); }
+      EH.cmd({ t: 'paint', id: 'wall_wood', cells: ring.filter((c) => !(c.y === h.y + 1 + R && (c.x === h.x || c.x === h.x + 1))) });
+      for (const [dx, dy] of [[-2, -2], [3, -2], [-2, 3], [3, 3], [0, -3], [1, 4]]) EH.cmd({ t: 'place', id: 'tower_arrow', x: h.x + dx, y: h.y + dy });
+      EH.cmd({ t: 'place', id: 'trap_spikes', x: h.x, y: h.y + 1 + R + 1 });
+      EH.cmd({ t: 'place', id: 'trap_tar', x: h.x + 1, y: h.y + 1 + R + 1 });
+      EH.app.build.exit();
+      EH.goto('night', { night: 3 });
+    });
+    await waitFor('night', () => window.__EH.state().phase === 'night');
+    await ev(() => window.__EH.speed(3));
+    let best = null;
+    const tN = Date.now();
+    while (Date.now() - tN < 45000) {
+      s = await S();
+      if (s.phase !== 'night') break;
+      const score = (s.projectiles > 0) + (s.veiled > 0) + (s.enemies > 8);
+      if (score === 3) { await ev(() => window.__EH.speed(1)); await sleep(500); best = await S(); break; }
+      await sleep(250);
+    }
+    await ev(() => window.__EH.speed(1));
+    check('night with shooting towers + veiled enemies', best, best ? `enemies=${best.enemies} veiled=${best.veiled} proj=${best.projectiles}` : 'conditions not met');
+    await shot('night-defense');
+
+    // ── 8. Boss night ───────────────────────────────────────────────────────
+    await ev(() => { window.__EH.goto('night', { night: 5 }); window.__EH.speed(2); });
+    await waitFor('boss spawned', () => !!window.__EH.state().boss, undefined, 60000);
+    await ev(() => window.__EH.speed(1));
+    await waitFor('boss on screen', () => {
+      const EH = window.__EH, s = EH.state(); const b = s.enemies.find((e) => e.uid === s.boss.uid);
+      if (!b) return false; EH.app.cam.x = b.x * 16; EH.app.cam.y = b.y * 16 - 10; EH.app.build.freeCam = false; return true;
+    });
+    await ev(() => { const EH = window.__EH; EH.app.autoplay.on = false; EH.app.paused = false; });
+    await sleep(1800);
+    await ev(() => { const EH = window.__EH, s = EH.state(); const b = s.enemies.find((e) => e.uid === s.boss.uid); if (b) { EH.app.cam.x = b.x * 16; EH.app.cam.y = b.y * 16 - 10; } });
+    check('boss night: boss present with health bar', !!(await S()).boss);
+    await shot('boss');
+
+    // ── 9. Dawn boons ───────────────────────────────────────────────────────
+    await ev(() => window.__EH.goto('dawn', { night: 3 }));
+    await waitFor('boon offer', () => (window.__EH.state().boonOffer || []).length > 0);
+    await sleep(500);
+    await shot('dawn-boons');
+    await tapUI('boon_0');
+    await sleep(300);
+    s = await S();
+    check('picking a boon resolves dawn', !s.boon && s.phase === 'day', `phase=${s.phase}`);
+
+    // ── 10. Continue run after reload ───────────────────────────────────────
+    const nightBefore = s.night;
+    await page.reload();
+    await waitFor('title after reload', () => window.__EH && window.__EH.app.screen === 'title' && window.__EH.app.atlas.img);
+    const canContinue = await ev(() => !!window.__EH.app.savedRun());
+    check('run snapshot saved at dawn', canContinue);
+    if (canContinue) {
+      await sleep(400);
+      await tapUI('continue');
+      await waitFor('continued game', () => window.__EH.app.screen === 'game');
+      s = await S();
+      check('Continue run restores the saved night', s.night === nightBefore, `night ${s.night} vs ${nightBefore}`);
+      await ev(() => window.__EH.app.toTitle());
+    }
+
+    // ── 11. Barracks ────────────────────────────────────────────────────────
+    await ev(() => { const a = window.__EH.app; a.meta.ember = Math.max(a.meta.ember, 260); a.saveMeta(); a.screen = 'title'; });
+    await sleep(200);
+    await tapUI('barracks');
+    await waitFor('barracks', () => window.__EH.app.screen === 'barracks');
+    const hb = await ev(() => window.__EH.app.meta.unlockedHeroes.length);
+    await tapUI('hero_ranger');
+    await tapUI('tal_startWood');
+    const ha = await ev(() => window.__EH.app.meta.unlockedHeroes.length);
+    check('barracks: unlock a hero with Ember', ha === hb + 1, `${hb} -> ${ha}`);
+    await sleep(300);
+    await shot('barracks');
+    await tapUI('back');
+
+    // ── 12. Defeat → Title ──────────────────────────────────────────────────
+    await ev(() => window.__EH.start(5));
+    await ev(() => { window.__EH.cmd({ t: 'skipTutorial' }); window.__EH.goto('night', { night: 6 }); window.__EH.speed(2); });
+    await sleep(2500);
+    await ev(() => window.__EH.goto('defeat'));
+    await waitFor('defeat', () => window.__EH.state().phase === 'defeat');
+    await sleep(1200);
+    await shot('defeat');
+    await tapUI('toTitle');
+    check('Defeat → Title', await ev(() => window.__EH.app.screen === 'title'));
+
+    // ── 13. FPS with ~150 enemies ───────────────────────────────────────────
+    await ev(() => window.__EH.start(3));
+    await ev(() => { window.__EH.cmd({ t: 'skipTutorial' }); window.__EH.goto('night', { night: 8 }); });
+    const spawned = await ev(() => window.__EH.spawn ? window.__EH.spawn(150) : 0);
+    await waitFor('150 enemies', () => window.__EH.state().enemies.length >= 140, undefined, 60000);
+    await ev(() => { const EH = window.__EH, s = EH.state(); const e = s.enemies[Math.floor(s.enemies.length / 2)]; EH.app.cam.x = e.x * 16; EH.app.cam.y = e.y * 16; });
+    const fps = await ev(() => new Promise((res) => { let n = 0; const t0 = performance.now(); const f = () => { n++; if (performance.now() - t0 < 5000) requestAnimationFrame(f); else res(n / ((performance.now() - t0) / 1000)); }; requestAnimationFrame(f); }));
+    const nE = (await S()).enemies;
+    console.log(`[e2e] avg fps ${fps.toFixed(1)} with ${nE} enemies (DPR 2, 780x1688 backing store, spawned ${spawned})`);
+    check(`avg FPS >= ${FPS_GATE} with ~150 enemies`, fps >= FPS_GATE && nE >= 140, `${fps.toFixed(1)} fps, ${nE} enemies`);
+
+    // ── final: console + sprites ────────────────────────────────────────────
+    const missing = await ev(() => window.__EH.missing());
+    check('no missing sprite names referenced', missing.length === 0, missing.slice(0, 12).join(', '));
+    const appErrors = await ev(() => window.__EH.errors.slice());
+    check('no console errors / page errors', consoleErrors.length === 0 && appErrors.length === 0, [...consoleErrors, ...appErrors].slice(0, 5).join(' | '));
+  } catch (e) {
+    check('e2e flow completed', false, e.message);
+    try { await page.screenshot({ path: join(SHOTS, '_failure.png') }); log('failure screenshot: docs/shots/_failure.png'); } catch { /* */ }
+    if (consoleErrors.length) log('console errors:', consoleErrors.slice(0, 10));
+  } finally {
+    await browser.close();
+    server.close();
+  }
+  const failed = checks.filter((c) => !c.ok);
+  log(`${checks.length - failed.length}/${checks.length} checks passed; shots: ${SHOT_NAMES.map((n) => n + '.png').join(' ')}`);
+  process.exit(failed.length ? 1 : 0);
+}
+
+main().catch((e) => { console.error('[e2e] fatal:', e); process.exit(1); });

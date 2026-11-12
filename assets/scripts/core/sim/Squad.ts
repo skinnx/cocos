@@ -13,6 +13,7 @@ import { CENTER, isTreeKind } from './MapGen';
 import { fire, igniteTarAt } from './Projectiles';
 import { anyEnemyNear, forEnemiesInRange, nearestEnemy } from './Query';
 import { rebuildTerrain } from './Grid';
+import { attackablePoi, damagePoi } from './Pois';
 import { type World, type HeroX, type EnemyX, type AllyX, type BuildingX, emit, newUid, boonStacks, leader, distToRect } from './World';
 
 export const HERO_RADIUS = 0.3;
@@ -163,7 +164,15 @@ function attack(w: World, h: HeroX, dt: number): void {
   const def = HEROES[h.id];
   const reach = def.range;
   const e = nearestEnemy(w, h.x, h.y, reach, (o) => canHit(def.dtype, o.tags));
-  if (!e) { h.atkCd = 0; return; }
+  if (!e) {
+    const p = attackablePoi(w, h.x, h.y, def.melee ? def.range + 0.4 : def.range);
+    if (p) {
+      h.atkCd = 1 / def.rate; setAnim(h, 'attack'); h.facing = p.x + 0.5 >= h.x ? 1 : -1;
+      damagePoi(w, p, def.dmg * heroLevelMul(h) * (1 + heroDmgBonus(w)));
+      return;
+    }
+    h.atkCd = 0; return;
+  }
   h.atkCd = 1 / def.rate;
   h.tgt = e.uid; h.combatT = 0;
   h.facing = e.x >= h.x ? 1 : -1;

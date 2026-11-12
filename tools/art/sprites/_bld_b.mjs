@@ -69,7 +69,7 @@ export function arrowTower(lv) {
 // ── Frost tower (4 frames) ────────────────────────────────────────────────────
 function crystal(p, cx, top, hw, h) { // faceted ice crystal: lit left facet, mid, dark right facet
   for (let y = 0; y < h; y++) {
-    const t = y / (h - 1), half = t < 0.35 ? (t / 0.35) * hw : ((1 - t) / 0.65) * hw;
+    const t = y / (h - 1), half = t < 0.3 ? 0.5 + (t / 0.3) * (hw - 0.5) : 0.5 + ((1 - t) / 0.7) * (hw - 0.5);
     for (let x = Math.floor(cx - half); x <= Math.ceil(cx + half) - 1; x++) {
       const u = (x + 0.5 - cx);
       p.set(x, top + y, u < -0.5 ? 'E' : u > 0.5 ? 'C' : 'D');
@@ -90,7 +90,7 @@ export function frostTower(lv) {
   if (lv >= 2) { base.rect(4, gy - ped + 1, 8, 1, 'u'); base.rect(4, gy - 5, 8, 1, 'u'); dots(base, [[5, gy - ped + 1], [10, gy - 5]], 'v'); }
   if (lv >= 2) { crystal(base, 3, gy - ped - 6, 1.6, 5); crystal(base, 13, gy - ped - 5, 1.4, 4); } // side shards
   if (lv === 3) { banner(base, 4, gy - ped + 2, 5, ['B', 'C', 'D'], 'E'); banner(base, 9, gy - ped + 2, 5, ['B', 'C', 'D'], 'E'); }
-  const ch = [10, 11, 13][lv - 1], chw = [3.2, 3.6, 4.2][lv - 1];
+  const ch = [11, 13, 15][lv - 1], chw = [2.8, 3.2, 3.8][lv - 1];
   return frames(base, 4, (p, f) => {
     const bob = [0, -1, -1, 0][f];
     crystal(p, 8, gy - ped - 3 - ch + bob, chw, ch);
@@ -136,95 +136,102 @@ export function sparkTower(lv) {
         x += Math.cos(ang) + (r() - 0.5) * 1.4; y += Math.sin(ang) * 0.8 + (r() - 0.5) * 1.4;
         const X = Math.round(x), Y = Math.round(y);
         if (X < 0 || X > 15 || Y < 0) break;
-        if (p.get(X, Y) === '.' || p.get(X, Y) === 'k') p.set(X, Y, k === len - 1 ? 'D' : (k % 2 ? 'E' : 'w'));
+        if (p.get(X, Y) === '.') p.set(X, Y, k === len - 1 ? 'D' : (k % 2 ? 'E' : 'w'));
       }
     }
   });
 }
 
 // ── Ballista (2×2 base + 8-direction head) ────────────────────────────────────
-export const BALLISTA_PIVOT = { x: 16, y: 18 }; // where the head's anchor sits on the base sprite
+export const BALLISTA_PIVOT = { x: 16, y: 17 }; // base-sprite pixel where the head's anchor goes
 export function ballistaBase(lv) {
-  const H = 36, p = new Px(32, H), gy = H - 2;
-  const mat = lv === 1 ? 'wood' : 'stone';
-  if (mat === 'wood') {
-    box(p, 2, 8, 28, 19, 7, ['f', 'g', 'h']);
-    for (let x = 4; x < 30; x += 4) p.rect(x, 8, 1, 19, 'g'); p.rect(2, 8, 28, 1, 'i');
-    for (let y = 28; y < 33; y += 2) for (let x = 3; x < 29; x++) if (x % 7 === 0) p.set(x, y, 'f');
-    for (const x of [2, 28]) { p.rect(x, 26, 2, 8, 'f'); p.rect(x, 26, 1, 8, 'g'); } // corner posts
+  const H = 36, p = new Px(32, H);
+  const stone = lv >= 2;
+  // round gun platform: top ellipse centred on the pivot, 7px front wall
+  if (!stone) {
+    cyl(p, 16, 17, 14, 9, 7, ['f', 'g', 'h'], { top: 'h', rim: ['g', 'i'] });
+    for (let y = 9; y < 27; y++) for (let x = 0; x < 32; x++) if (p.get(x, y) === 'h' && x % 4 === 1) p.set(x, y, 'g');
+    for (let x = 0; x < 32; x++) for (let y = 24; y < 34; y++) if ('gf'.includes(p.get(x, y)) && y > 26 && x % 5 === 0) p.set(x, y, 'f');
+    for (const x of [6, 25]) { p.rect(x, 25, 2, 8, 'f'); p.set(x, 25, 'g'); } // lashing posts
+    for (let x = 3; x < 29; x++) if ('gfh'.includes(p.get(x, 29))) p.set(x, 29, 't');      // iron hoop
   } else {
-    box(p, 2, 9, 28, 17, 8, ['s', 't', 'u']);
-    bricks(p, 3, 27, 26, 7, 't', 's', 6);
-    p.rect(2, 9, 28, 1, 'v').rect(2, 9, 1, 17, 'v');
-    // wooden deck inset
-    p.rect(5, 11, 22, 13, 'h'); for (let x = 7; x < 27; x += 3) p.rect(x, 11, 1, 13, 'g'); p.rect(5, 11, 22, 1, 'i').rect(26, 11, 1, 13, 'g').rect(5, 23, 22, 1, 'f');
-    crenels(p, 2, 7, 28);
+    cyl(p, 16, 17, 14, 9, 7, ['s', 't', 'u'], { top: 'u', rim: ['t', 'v'] });
+    bricks(p, 2, 25, 28, 9, 't', 's', 6);
+    p.ellipse(16, 17, 11, 6.5, 'h');
+    for (let y = 10; y < 24; y++) for (let x = 0; x < 32; x++) if (p.get(x, y) === 'h' && x % 3 === 0) p.set(x, y, 'g');
+    p.speckle('u', 'v', 0.12, 4);
+    if (lv === 3) { for (const [x, y] of [[3, 15], [27, 15], [8, 9], [22, 9]]) { p.rect(x, y, 3, 2, 'v'); p.rect(x, y + 2, 3, 1, 's'); } } // merlons
   }
-  // turntable ring
-  p.ellipse(16, 18, 6, 3.4, 'f').ellipse(16, 18, 4.6, 2.4, 't').ellipse(16, 18, 2.4, 1.2, 's');
-  for (const [x, y] of [[11, 18], [21, 18], [16, 15], [16, 21]]) p.set(x, y, 'u');
-  // bolt rack on the right side of the deck
-  if (lv >= 2) for (let i = 0; i < 3; i++) { p.rect(24, 12 + i * 2, 4, 1, 'g'); p.set(27, 12 + i * 2, 'u'); }
-  if (lv === 3) {
-    for (const x of [2, 27]) { p.rect(x, 26, 3, 8, 'u'); p.rect(x, 26, 1, 8, 'v'); p.rect(x + 2, 26, 1, 8, 't'); dots(p, [[x + 1, 28], [x + 1, 32]], 's'); }
-    banner(p, 7, 27, 5, ['r', 'R', 'o']); banner(p, 22, 27, 5, ['r', 'R', 'o']);
-    flagPole(p, 4, 1, 7);
-  }
-  if (lv === 2) { p.rect(3, 26, 26, 1, 'u'); dots(p, [[6, 26], [16, 26], [26, 26]], 'v'); }
+  // iron turntable
+  p.ellipse(16, 17, 7, 4, 's').ellipse(16, 16.6, 6, 3.2, 't').ellipse(16, 17, 4, 2, 'f');
+  for (const [x, y] of [[10, 17], [22, 17], [16, 13], [16, 21]]) p.set(x, y, 'u');
+  if (lv >= 2) for (let i = 0; i < 3; i++) { p.rect(22, 21 + i * 2, 5, 1, 'g'); p.set(26, 21 + i * 2, 'v'); p.set(22, 21 + i * 2, 'f'); } // bolt rack
+  if (lv === 2) for (let x = 3; x < 29; x++) if ('ts'.includes(p.get(x, 30))) p.set(x, 30, 'u');
+  if (lv === 3) { banner(p, 7, 26, 5, ['r', 'R', 'o']); banner(p, 22, 26, 5, ['r', 'R', 'o']); flagPole(p, 5, 3, 8); p.rect(6, 19, 3, 3, 'g').rect(6, 19, 3, 1, 'h').set(8, 21, 'f'); }
   return p.outline();
 }
-// dir 0 = east, counter-clockwise in 45° steps. Pivot at (12, 11) of a 24×20 canvas.
+// dir 0 = east, counter-clockwise in 45° steps. 28×24 canvas, pivot (14, 12).
+export const BALLISTA_HEAD_PIVOT = { x: 14, y: 12 };
 export function ballistaHead(dir, lv = 1) {
-  const p = new Px(24, 20), cx = 12, cy = 11;
-  const a = (dir * Math.PI) / 4, fx = Math.cos(a), fy = -Math.sin(a) * 0.75;
-  // forward axis (fx, fy) and side axis, both foreshortened 0.75 vertically for the ¾ view
-  const px = (f, s) => [cx + fx * f + Math.sin(a) * s, cy + fy * f + Math.cos(a) * 0.75 * s];
-  const P = (f, s) => { const v = px(f, s); return [Math.round(v[0]), Math.round(v[1])]; };
-  // mount (under everything)
-  p.ellipse(cx - 0.5, cy + 1, 3.5, 2.2, 'f').ellipse(cx - 0.5, cy + 0.5, 2.4, 1.4, 'g');
-  // stock
-  thick(p, ...P(-6, 0), ...P(7, 0), 'g', 2);
-  p.line(...P(-6, 0), ...P(7, 0), 'h');
-  // bow arms (bent back) + string
-  const tipL = P(1, 8.5), tipR = P(1, -8.5), root = P(4, 0), nock = P(-3, 0);
-  thick(p, ...root, ...P(3.5, 4.5), 'f', 2); thick(p, ...P(3.5, 4.5), ...tipL, 'f', 1);
-  thick(p, ...root, ...P(3.5, -4.5), 'f', 2); thick(p, ...P(3.5, -4.5), ...tipR, 'f', 1);
-  p.line(...P(3.5, 4.5), ...tipL, 'h'); p.line(...P(3.5, -4.5), ...tipR, 'g');
-  p.line(...tipL, ...nock, 'w'); p.line(...tipR, ...nock, 'w');
-  // bolt with steel head
-  p.line(...P(-2, 0), ...P(8, 0), 'u'); p.set(...P(9, 0), 'v'); p.set(...P(8, 0), 'v');
-  // steel fittings
-  p.set(...root, 't'); p.set(...tipL, 's'); p.set(...tipR, 's'); p.set(...P(-6, 0), 'f');
-  if (lv) p.set(...P(0, 0), 'y');
+  const W = 28, H = 24, p = new Px(W, H), cx = 14, cy = 12;
+  const a = (dir * Math.PI) / 4, fx = Math.cos(a), fy = -Math.sin(a) * 0.75, sa = Math.sin(a), ca = Math.cos(a) * 0.75;
+  const local = (x, y) => { const dx = x + 0.5 - cx, dy = y + 0.5 - cy; return [(dx * ca - sa * dy) / 0.75, (fx * dy - fy * dx) / 0.75]; };
+  const arcF = (s) => 3.5 - 0.03 * s * s;
+  const shape = (f, s) => {
+    const as = Math.abs(s);
+    if (f > 7.8 && f < 11.5 && as < 1.3 - (f - 7.8) * 0.33) return 'v';               // bolt head
+    if (as < 0.75 && f > -4 && f <= 7.8) return 'u';                                 // bolt shaft
+    if (as <= 10.5 && Math.abs(f - arcF(s)) < (as < 5 ? 1.3 : 0.95)) return 'A';      // bow arms
+    if (as < 10.5 && Math.abs(f - (-4 + (as / 10.5) * (arcF(10.5) + 4))) < 0.5) return 'S'; // string
+    if (as < 2.4 && f > -8 && f < 5.5) return 'B';                                   // stock / carriage
+    if (as < 3.6 && f > -9 && f < -6) return 'W';                                    // winch drum
+    return null;
+  };
+  const grid = Array.from({ length: H }, (_, y) => Array.from({ length: W }, (_, x) => shape(...local(x, y))));
+  const is = (x, y, c) => grid[y]?.[x] === c;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const c = grid[y][x]; if (!c) continue;
+    let col = c;
+    if (c === 'B') col = !is(x, y - 1, 'B') ? 'h' : !is(x, y + 1, 'B') || !is(x + 1, y, 'B') ? 'f' : 'g';
+    if (c === 'A') col = !is(x, y - 1, 'A') ? 'h' : !is(x, y + 1, 'A') ? 'f' : 'g';
+    if (c === 'S') col = 'i';
+    if (c === 'W') col = !is(x, y - 1, 'W') ? 'u' : !is(x, y + 1, 'W') ? 's' : 't';
+    p.set(x, y, col);
+  }
+  p.set(cx, cy, lv >= 3 ? 'y' : 't'); p.set(cx - 1, cy, 'u'); // pivot pin
   return p.outline();
 }
 
 // ── Mortar (2×2) ──────────────────────────────────────────────────────────────
 export function mortar(lv) {
   const H = [34, 36, 38][lv - 1], p = new Px(32, H), gy = H - 2;
-  // emplacement ring
-  cyl(p, 16, gy - 11, 14, 5.5, 5, ['s', 't', 'u'], { top: lv === 1 ? 'g' : 'h', rim: ['t', 'v'] });
-  bricks(p, 2, gy - 9, 28, 9, 't', 's', 5);
-  if (lv === 1) for (let x = 4; x < 29; x += 3) p.set(x, gy - 11, 'f'); // plank floor
-  // sandbags / parapet blocks on the rim
-  if (lv >= 2) for (const x of [3, 9, 20, 26]) { p.rect(x, gy - 7, 4, 2, lv === 3 ? 'u' : 'i'); p.rect(x, gy - 6, 4, 1, lv === 3 ? 't' : 'h'); p.set(x + 3, gy - 7, lv === 3 ? 't' : 'h'); }
-  // barrel: squat iron cylinder tilted toward the north, mouth up
-  const br = [5, 5.5, 6.5][lv - 1], by = gy - 16;
-  p.rect(Math.round(16 - br), by - 6, Math.round(br * 2), 10, 't');
-  p.ellipse(16, by + 4, br, 2.4, 't');
-  for (let y = by - 6; y <= by + 6; y++) for (let x = 0; x < 32; x++) if (p.get(x, y) === 't' && x <= 16 - br + 1) p.set(x, y, 'u'); else if (p.get(x, y) === 't' && x >= 16 + br - 2) p.set(x, y, 's');
-  p.rect(Math.round(16 - br) + 2, by - 6, 1, 10, 'v');
-  // bands
-  const band = lv === 3 ? 'y' : 'f', bandD = lv === 3 ? 'x' : 'f';
-  for (const yy of [by - 2, by + 2]) for (let x = Math.round(16 - br); x < Math.round(16 + br); x++) p.set(x, yy, x >= 16 + br - 2 ? bandD : band);
-  // mouth
-  p.ellipse(16, by - 6, br, 2.2, 'u'); p.ellipse(16, by - 6, br - 1.3, 1.3, 'n'); p.ellipse(16.5, by - 5.5, br - 2.5, 0.6, 'k');
-  // trunnion mount
-  p.rect(Math.round(16 - br) - 2, by, 2, 4, 'g').rect(Math.round(16 + br), by, 2, 4, 'f');
-  // cannonballs
-  const balls = lv === 1 ? [[25, gy - 12]] : [[24, gy - 12], [27, gy - 12], [25.5, gy - 14]];
-  for (const [x, y] of balls) { p.ellipse(x, y, 1.6, 1.6, 's'); p.set(Math.floor(x) - 1, y - 1, 'u'); }
-  if (lv === 3) { flagPole(p, 5, gy - 30, 10); banner(p, 26, gy - 6, 4, ['r', 'R', 'o']); }
-  if (lv >= 2) { p.rect(4, gy - 14, 3, 3, 'g').rect(4, gy - 14, 3, 1, 'h').set(6, gy - 13, 'f'); } // powder keg
+  // low ring wall around a sunken floor
+  const ry = 6.5, cy = gy - 12;
+  cyl(p, 16, cy, 14.5, ry, 4, ['s', 't', 'u'], { top: 'u', rim: ['t', 'v'] });
+  bricks(p, 2, cy, 28, ry + 6, 't', 's', 5);
+  p.ellipse(16, cy, 11.5, ry - 2.2, lv === 1 ? 'g' : 'f');
+  if (lv === 1) for (let x = 5; x < 28; x += 3) for (let y = cy - 4; y <= cy + 4; y++) if (p.get(x, y) === 'g') p.set(x, y, 'f'); // plank floor
+  else p.speckle('f', 'g', 0.2, 7);
+  p.speckle('u', 'v', 0.1, 3);
+  if (lv === 3) for (const [x, y] of [[2, cy - 2], [27, cy - 2], [7, cy - 6], [22, cy - 6]]) { p.rect(x, y, 3, 2, 'v'); p.rect(x, y + 2, 3, 1, 's'); } // merlons
+  // cradle
+  const by = cy + 1;
+  box(p, 10, by - 1, 12, 2, 3, ['f', 'g', 'h']);
+  // barrel: bulb + short neck tilted back, mouth facing up
+  const br = [5, 5.5, 6.5][lv - 1];
+  const tone = (x, cx, r) => { const u = (x + 0.5 - cx) / r; return u < -0.5 ? 'u' : u > 0.35 ? 's' : 't'; };
+  for (let y = Math.floor(by - br * 0.8); y <= by + 1; y++) for (let x = 0; x < 32; x++) if (((x + 0.5 - 16) / (br + 1)) ** 2 + ((y + 0.5 - by + 1) / (br * 0.8)) ** 2 <= 1) p.set(x, y, tone(x, 16, br + 1));
+  const neckH = [8, 9, 11][lv - 1];
+  for (let k = 0; k <= neckH; k++) { const yc = by - 2 - k; for (let x = 0; x < 32; x++) if (Math.abs(x + 0.5 - 16) <= br - 0.4) p.set(x, yc, tone(x, 16, br)); }
+  const band = lv === 3 ? ['y', 'x'] : lv === 2 ? ['u', 's'] : ['s', 'n'];
+  for (const k of lv === 1 ? [2] : [2, neckH - 1]) for (let x = 0; x < 32; x++) if (Math.abs(x + 0.5 - 16) <= br - 0.4) p.set(x, by - 2 - k, x > 17 ? band[1] : band[0]);
+  const my = by - 3 - neckH;
+  p.ellipse(16, my, br, 2.2, 'u'); p.ellipse(16, my, br - 1.2, 1.4, 'n'); p.rect(15, my, 2, 1, 'k'); p.set(Math.round(16 + br) - 1, my, 's');
+  p.set(Math.round(16 - br) + 1, by - 4, 'v').set(Math.round(16 - br) + 1, by - 5, 'v');
+  // shells + powder keg
+  const balls = lv === 1 ? [[24, cy + 1]] : [[23, cy + 1], [26, cy + 1], [24.5, cy - 1]];
+  for (const [x, y] of balls) { p.ellipse(x, y, 1.5, 1.5, 's'); p.set(Math.floor(x) - 1, y - 1, 'u'); p.set(Math.floor(x) + 1, y + 1, 'n'); }
+  if (lv >= 2) { p.rect(5, cy - 1, 3, 4, 'g').rect(5, cy - 1, 3, 1, 'h').rect(7, cy, 1, 3, 'f').set(5, cy + 1, 't').set(6, cy + 1, 't'); }
+  if (lv === 3) { flagPole(p, 4, 1, 10); banner(p, 14, gy - 5, 4, ['r', 'R', 'o']); }
   return p.outline();
 }
