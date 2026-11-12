@@ -37,7 +37,11 @@ export type Command =
   | { t: 'callNight' }                                        // day → dusk early
   | { t: 'startNight' }                                       // dusk → night
   | { t: 'pickBoon'; index: number }                          // dawn (or chest pick) → resolves pending choice
-  | { t: 'swapHero'; reserveIndex: number; squadIndex: number };
+  | { t: 'swapHero'; reserveIndex: number; squadIndex: number }
+  // core: additive commands
+  | { t: 'hire'; index: number }                              // tavern: buy offered hero (DAWN/DAY)
+  | { t: 'endless' }                                          // victory → continue into endless nights
+  | { t: 'skipTutorial' };
 
 // ── Events: one-shot things the view turns into FX/SFX/UI. Drained each frame. ─
 export type GameEvent =
@@ -59,7 +63,16 @@ export type GameEvent =
   | { t: 'poi'; uid: number; kind: PoiKind; action: 'opened' | 'cleared' | 'freed' | 'used' | 'destroyed' }
   | { t: 'boonOffer'; source: 'dawn' | 'chest' }
   | { t: 'hearthLow' }
-  | { t: 'tutorial'; step: number };
+  | { t: 'tutorial'; step: number }
+  // core: additive events
+  | { t: 'shrine'; buff: ShrineBuff }
+  | { t: 'falseDawn' }
+  | { t: 'pulse'; x: number; y: number; radius: number }      // The Unlit's light-snuffing pulse
+  | { t: 'teleport'; uid: number; x: number; y: number }
+  | { t: 'heal'; target: number; amount: number; x: number; y: number }
+  | { t: 'hired'; hero: HeroId }
+  | { t: 'enrage' };
+export type ShrineBuff = 'damage' | 'towerRate' | 'heal';
 
 export type ProjectileKind = 'arrow' | 'bolt' | 'fireball' | 'frost_shard' | 'mortar' | 'spark' | 'spit' | 'turret';
 
@@ -74,6 +87,10 @@ export interface ResourceNode { uid: number; kind: NodeKind; x: number; y: numbe
 export interface PoiState { uid: number; kind: PoiKind; x: number; y: number; hp: number; maxHp: number; active: boolean; data?: Record<string, unknown> }
 export interface Boon { id: string; name: string; desc: string; group: 'squad' | 'fort' | 'flame'; rarity: 'common' | 'rare' | 'legendary'; stacks: number; maxStacks: number }
 export interface OmenEntry { enemy: EnemyId; count: number; rift: number; elite: number }
+// core: additive — friendly non-hero units (barracks militia, Tobi's mini turret) and ground-effect zones.
+export type AllyId = 'militia' | 'turret';
+export interface AllyState extends Unit { id: AllyId; owner: number /* building/hero uid */; ttl: number /* s left, -1 = until dawn */ }
+export interface ZoneState { uid: number; kind: 'firewall' | 'sanctum'; x: number; y: number; x2: number; y2: number /* firewall segment end; = x,y for circles */; r: number; t: number /* s left */; dur: number }
 
 export interface GameState {
   seed: number; night: number; phase: Phase; phaseT: number; phaseDur: number; timeScale: number;
@@ -87,6 +104,14 @@ export interface GameState {
   boss: { id: 'mossback' | 'unlit'; hp: number; maxHp: number; uid: number } | null;
   stats: { kills: number; built: number; nightsSurvived: number; bosses: number; camps: number; goldEarned: number };
   tutorial: number; // -1 = off/done
+  // core: additive
+  allies: AllyState[]; zones: ZoneState[];
+  boonSource: 'dawn' | 'chest' | null;
+  tavernOffer: Array<{ hero: HeroId; cost: number }> | null;
+  buffs: { shrine: ShrineBuff | null; falseDawnT: number; unlitPulseT: number; hearthLightMul: number };
+  endless: boolean;
+  nightT: number;      // seconds since night start (0 outside NIGHT)
+  squadMax: number;    // 4, or 5 with the 'ally' boon
 }
 
 export interface MetaState {
@@ -116,6 +141,8 @@ export interface Game {
   emberEarned(): number;
 }
 
+// Notes (core): tar trap uses BuildingState.lit = burning; spikes use charges (0 = retracted).
+// Rift POIs carry data.index (OmenEntry.rift) and active = spawning tonight. Cage data.hero, shrine data.used.
 // Implemented in core/sim/Game.ts:
 //   export function createGame(opts: { seed: number; meta: MetaState; saved?: string }): Game
 //   export function defaultMeta(): MetaState
