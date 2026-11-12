@@ -26,8 +26,8 @@ export function drawHud(app: App) {
   // ── top-left: hearth bar + resources ────────────────────────────────────
   A.drawTL(g, 'icon_fire', L, Tp);
   if (hearth) {
-    ui.bar(L + 17, Tp + 4, 42, 8, hearth.hp / hearth.maxHp, 'bar_fill_red');
-    f.draw(g, fmtNum(hearth.hp), L + 17 + 21, Tp + 13, { align: 'center', color: COL.white });
+    ui.bar(L + 17, Tp + 3, 44, 10, hearth.hp / hearth.maxHp, 'bar_fill_red');
+    f.draw(g, fmtNum(hearth.hp), L + 17 + 22, Tp + 14, { align: 'center', color: COL.white });
   }
   const res: Array<['wood' | 'stone' | 'gold', string]> = [['wood', COL.wood], ['stone', COL.stone], ['gold', COL.gold]];
   res.forEach(([k], i) => {
@@ -67,7 +67,7 @@ export function drawHud(app: App) {
   if (s.boss && s.boss.hp > 0) {
     const bw = W - safe.l - safe.r - 24, bx = safe.l + 12, by = Tp + 92;
     f.draw(g, app.tr(`enemy.${s.boss.id}.name`), W / 2, by - 9, { align: 'center', color: COL.purple });
-    ui.bar(bx, by, bw, 8, s.boss.hp / s.boss.maxHp, 'bar_fill_red');
+    ui.bar(bx, by, bw, 10, s.boss.hp / s.boss.maxHp, 'bar_fill_red');
   }
 
   // ── left-middle: squad portraits ────────────────────────────────────────
@@ -83,7 +83,7 @@ export function drawHud(app: App) {
     }
     if (h.leader) A.drawTL(g, 'icon_pin', x + 14, y - 5);
     f.draw(g, String(h.level), x + 1, y + 16, { color: COL.gold });
-    ui.bar(x - 1, y + 25, 26, 5, h.hp / h.maxHp, h.anim === 'down' ? 'bar_fill_blue' : 'bar_fill_green');
+    ui.bar(x - 1, y + 25, 26, 8, h.hp / h.maxHp, h.anim === 'down' ? 'bar_fill_blue' : 'bar_fill_green');
     if (h.anim === 'down' && h.reviveT > 0) f.draw(g, `${Math.ceil(h.reviveT)}`, x + 12, y + 8, { align: 'center', color: COL.white });
   });
 
@@ -128,7 +128,7 @@ export function drawHud(app: App) {
   for (const bn of app.fx.banners) {
     const k = bn.t / bn.life;
     const alpha = k < 0.15 ? k / 0.15 : k > 0.8 ? (1 - k) / 0.2 : 1;
-    const y = Math.round(H * 0.36 - (k < 0.15 ? (1 - k / 0.15) * 10 : 0));
+    const y = Math.round(H * 0.46 - (k < 0.15 ? (1 - k / 0.15) * 10 : 0));
     const big = /^[0-9A-Z !-]+$/.test(bn.text) && bn.text.length <= 14;
     const tw = f.width(bn.text, 5) * (big ? 2 : 1);
     const bw = Math.min(W - 8, tw + 20);
@@ -145,6 +145,11 @@ export function drawHud(app: App) {
     f.draw(g, app.tr('banner.boss'), W / 2, H * 0.42 + 10, { align: 'center', color: COL.white, alpha });
   }
   app.fx.drawFlyers(g);
+  // floating joystick
+  if (app.joy) {
+    A.draw(g, 'ui_joy_base', app.joy.ox, app.joy.oy, { alpha: 0.85 });
+    A.draw(g, 'ui_joy_knob', app.joy.kx, app.joy.ky);
+  }
 }
 
 const bigCv = document.createElement('canvas');
@@ -237,7 +242,7 @@ function drawOmens(app: App) {
   ui.add({ x: px, y: py, w: pw, h: ph, id: 'omens', block: true, onTap: () => { app.omensOpen = !app.omensOpen; } });
   f.draw(g, `${app.tr('omen.title')} - ${app.tr('hud.night', { n: s.night })}`, px + pw / 2, py + 5, { align: 'center', color: COL.ink, shadow: null });
   if (!app.omensOpen) return;
-  f.draw(g, app.tr('omen.subtitle'), px + pw / 2, py + 16, { align: 'center', color: '#5a3a2e', shadow: null });
+  f.draw(g, app.tr('omen.subtitle'), px + pw / 2, py + 16, { align: 'center', color: COL.brown, shadow: null });
   rows.forEach(([id, e], i) => {
     const cx = px + 8 + (i % cols) * Math.floor((pw - 16) / cols), cy = py + 30 + Math.floor(i / cols) * rowH;
     const spr = id === 'mossback' ? 'boss_mossback_walk_0' : id === 'unlit' ? 'boss_unlit_float_0' : `enemy_${id}_move_0`;
@@ -245,10 +250,10 @@ function drawOmens(app: App) {
     if (fr && fr.h > 22) {
       // bosses: show a cropped head-and-shoulders window
       A.drawPart(g, spr, Math.max(0, Math.round(fr.w / 2 - 10)), Math.max(0, fr.h - 22), 20, 20, cx - 2, cy - 2);
-    } else A.draw(g, spr, cx + 8, cy + 18);
-    f.draw(g, `x${e.count}`, cx + 20, cy + 3, { color: COL.ink, shadow: null });
+    } else A.draw(g, spr, cx + 10, cy + 19);
+    f.draw(g, `x${e.count}`, cx + 24, cy + 2, { color: COL.ink, shadow: null });
     const tag = ENEMIES[id as keyof typeof ENEMIES] && (id === 'mossback' || id === 'unlit') ? app.tr('omen.boss') : e.elite ? `${app.tr('omen.elite')} ${e.elite}` : [...e.rifts].map((r) => `R${r + 1}`).join(' ');
-    f.draw(g, tag, cx + 20, cy + 12, { color: e.elite || id === 'mossback' || id === 'unlit' ? '#8c2f39' : '#4b2a6b', shadow: null });
+    f.draw(g, tag, cx + 24, cy + 11, { color: e.elite || id === 'mossback' || id === 'unlit' ? COL.wine : COL.plum, shadow: null });
   });
   // start night
   const lbl = app.tr('hud.startNight');

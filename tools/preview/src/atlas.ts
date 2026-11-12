@@ -5,7 +5,7 @@ import { defaultAnchor, defaultSlice } from '../../../assets/scripts/game/logic/
 export interface Frame { x: number; y: number; w: number; h: number; ax: number; ay: number; slice?: [number, number, number, number] | null }
 
 /** tint: whole silhouette in one colour (hit flash, elite rim). recolor: every pixel except the #1b1b2f outline. */
-export interface DrawOpts { flip?: boolean; alpha?: number; tint?: string; recolor?: string; scale?: number; rot?: number }
+export interface DrawOpts { flip?: boolean; alpha?: number; tint?: string; recolor?: string; noOutline?: boolean; scale?: number; rot?: number }
 
 export class Atlas {
   img: HTMLImageElement | null = null;
@@ -35,7 +35,7 @@ export class Atlas {
   has(name: string): boolean { return !!this.frames[name]; }
   get(name: string): Frame | null {
     const f = this.frames[name];
-    if (!f) { if (!this.missing.has(name)) { this.missing.add(name); console.warn(`[preview] missing sprite: ${name}`); } return null; }
+    if (!f) { if (this.img && !this.missing.has(name)) { this.missing.add(name); console.warn(`[preview] missing sprite: ${name}`); } return null; }
     return f;
   }
   /** Picks the first existing name (no warning for the fallbacks that miss). */
@@ -50,8 +50,8 @@ export class Atlas {
   }
 
   /** Sprite (or its single-colour silhouette) as a drawable source rect. */
-  private source(name: string, f: Frame, tint?: string, recolor?: string): [CanvasImageSource, number, number] {
-    if (recolor && !tint) return [this.recolored(name, f, recolor), 0, 0];
+  private source(name: string, f: Frame, tint?: string, recolor?: string, noOutline?: boolean): [CanvasImageSource, number, number] {
+    if ((recolor || noOutline) && !tint) return [this.recolored(name, f, recolor, noOutline), 0, 0];
     if (!tint) return [this.img!, f.x, f.y];
     const key = name + '|' + tint;
     let c = this.tintCache.get(key);
@@ -65,19 +65,19 @@ export class Atlas {
     return [c, 0, 0];
   }
 
-  private recolored(name: string, f: Frame, color: string): HTMLCanvasElement {
-    const key = name + '#' + color;
+  private recolored(name: string, f: Frame, color: string | undefined, noOutline = false): HTMLCanvasElement {
+    const key = name + '#' + (color ?? '') + (noOutline ? '!' : '');
     let c = this.tintCache.get(key);
     if (c) return c;
     c = document.createElement('canvas'); c.width = f.w; c.height = f.h;
     const g = c.getContext('2d')!;
     g.drawImage(this.img!, f.x, f.y, f.w, f.h, 0, 0, f.w, f.h);
     const d = g.getImageData(0, 0, f.w, f.h);
-    const r = parseInt(color.slice(1, 3), 16), gg = parseInt(color.slice(3, 5), 16), b = parseInt(color.slice(5, 7), 16);
+    const r = color ? parseInt(color.slice(1, 3), 16) : -1, gg = color ? parseInt(color.slice(3, 5), 16) : 0, b = color ? parseInt(color.slice(5, 7), 16) : 0;
     for (let i = 0; i < d.data.length; i += 4) {
       if (d.data[i + 3] === 0) continue;
-      if (d.data[i] === 0x1b && d.data[i + 1] === 0x1b && d.data[i + 2] === 0x2f) continue;
-      d.data[i] = r; d.data[i + 1] = gg; d.data[i + 2] = b;
+      if (d.data[i] === 0x1b && d.data[i + 1] === 0x1b && d.data[i + 2] === 0x2f) { if (noOutline) d.data[i + 3] = 0; continue; }
+      if (r >= 0) { d.data[i] = r; d.data[i + 1] = gg; d.data[i + 2] = b; }
     }
     g.putImageData(d, 0, 0);
     this.tintCache.set(key, c);
@@ -88,15 +88,15 @@ export class Atlas {
   draw(ctx: CanvasRenderingContext2D, name: string, x: number, y: number, o: DrawOpts = {}): Frame | null {
     const f = this.get(name);
     if (!f || !this.img) return f;
-    const [src, sx, sy] = this.source(name, f, o.tint, o.recolor);
+    const [src, sx, sy] = this.source(name, f, o.tint, o.recolor, o.noOutline);
     const a = o.alpha ?? 1;
     if (a <= 0) return f;
-    x = Math.round(x); y = Math.round(y);
     const simple = !o.flip && !o.scale && !o.rot;
     if (a !== 1) ctx.globalAlpha = a;
-    if (simple) ctx.drawImage(src, sx, sy, f.w, f.h, x - f.ax, y - f.ay, f.w, f.h);
+    // fractional anchors (e.g. 2.5) are snapped so every sprite lands on whole art pixels
+    if (simple) ctx.drawImage(src, sx, sy, f.w, f.h, Math.round(x - f.ax), Math.round(y - f.ay), f.w, f.h);
     else {
-      ctx.save(); ctx.translate(x, y);
+      ctx.save(); ctx.translate(Math.round(x - f.ax) + f.ax, Math.round(y - f.ay) + f.ay);
       if (o.rot) ctx.rotate(o.rot);
       const s = o.scale ?? 1;
       ctx.scale(o.flip ? -s : s, s);

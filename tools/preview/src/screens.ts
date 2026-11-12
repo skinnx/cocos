@@ -8,6 +8,7 @@ import { HEROES, HERO_IDS } from '../../../assets/scripts/core/data/heroes';
 import { TALENTS } from '../../../assets/scripts/core/data/talents';
 import { BUILDINGS } from '../../../assets/scripts/core/data/buildings';
 import { buildingIcon } from './info';
+import { unlockHero, setStarterHero, buyTalent, buyBlueprint, talentCost, isValidRun } from '../../../assets/scripts/core/sim/Game';
 
 export function drawScreens(app: App) {
   const s = app.state;
@@ -36,7 +37,8 @@ function title(app: App) {
   let y = Math.round(H * 0.5);
   ui.button('play', x, y, bw, bh, app.tr('ui.play'), () => { app.clearRun(); app.newRun(); }, { icon: 'icon_play' }); y += bh + 6;
   const saved = app.savedRun();
-  ui.button('continue', x, y, bw, bh, app.tr('ui.continue'), () => app.newRun(undefined, saved!), { disabled: !saved, icon: 'icon_fire' }); y += bh + 6;
+  const canContinue = isValidRun(saved);
+  ui.button('continue', x, y, bw, bh, app.tr('ui.continue'), () => app.newRun(undefined, saved!), { disabled: !canContinue, icon: 'icon_fire' }); y += bh + 6;
   ui.button('barracks', x, y, bw, bh, app.tr('ui.barracks'), () => { app.screen = 'barracks'; }, { icon: 'icon_shield' }); y += bh + 6;
   ui.button('settings', x, y, bw, bh, app.tr('ui.settings'), () => { app.settingsFrom = 'title'; app.screen = 'settings'; }, { icon: 'icon_settings' });
   A.drawTL(app.b, 'icon_ember', W / 2 - 22, H - safe.b - 26);
@@ -71,8 +73,8 @@ function barracks(app: App) {
     f.draw(g, app.tr(`hero.${id}.name`), cx + (cw - 2) / 2, cy + 28, { align: 'center', color: starter ? COL.gold : COL.white });
     f.draw(g, starter ? app.tr('ui.starter').split(' ')[0] : unlocked ? app.tr('ui.unlocked') : String(cost), cx + (cw - 2) / 2, cy + 37, { align: 'center', color: unlocked ? COL.green : m.ember >= cost ? COL.fire : COL.red });
     ui.add({ x: cx, y: cy, w: cw - 2, h: ch, id: `hero_${id}`, block: true, onTap: () => {
-      if (unlocked) m.starterHero = id as HeroId;
-      else if (m.ember >= cost) { m.ember -= cost; m.unlockedHeroes.push(id as HeroId); app.audio.sfx('levelup'); }
+      if (unlocked) setStarterHero(m, id as HeroId);
+      else if (unlockHero(m, id as HeroId)) app.audio.sfx('levelup');
       else { app.audio.sfx('fail'); return; }
       app.saveMeta();
     } });
@@ -83,13 +85,13 @@ function barracks(app: App) {
   const rowH = 15;
   for (const t of TALENTS) {
     const lv = m.talents[t.id] ?? 0;
-    const cost = lv < t.maxLevel ? t.costs[lv] : 0;
+    const cost = talentCost(m, t.id) ?? 0;
     f.draw(g, app.tr(`talent.${t.id}.name`), px + 6, y + 4, { color: COL.white });
     for (let i = 0; i < t.maxLevel; i++) A.drawC(g, 'ui_range_dot', px + pw - 70 + i * 6, y + 7, { alpha: i < lv ? 1 : 0.3 });
     if (lv < t.maxLevel) ui.button(`tal_${t.id}`, px + pw - 48, y, 42, 14, String(cost), () => {
-      if (m.ember < cost) { app.audio.sfx('fail'); return; }
-      m.ember -= cost; m.talents[t.id] = lv + 1; app.saveMeta(); app.audio.sfx('upgrade');
-    }, { disabled: m.ember < cost, color: COL.fire });
+      if (!buyTalent(m, t.id)) { app.audio.sfx('fail'); return; }
+      app.saveMeta(); app.audio.sfx('upgrade');
+    }, { disabled: m.ember < cost });
     else f.draw(g, app.tr('ui.max'), px + pw - 27, y + 4, { align: 'center', color: COL.green });
     y += rowH;
   }
@@ -106,8 +108,8 @@ function barracks(app: App) {
     g.restore();
     f.draw(g, unlocked ? app.tr('ui.unlocked').slice(0, 7) : String(cost), cx + (bw - 2) / 2, y + 46, { align: 'center', color: unlocked ? COL.green : m.ember >= cost ? COL.fire : COL.red });
     ui.add({ x: cx, y, w: bw - 2, h: 58, id: `bp_${id}`, block: true, onTap: () => {
-      if (unlocked || m.ember < cost) { app.audio.sfx('fail'); return; }
-      m.ember -= cost; m.unlockedBlueprints.push(id); app.saveMeta(); app.audio.sfx('upgrade');
+      if (!buyBlueprint(m, id)) { app.audio.sfx('fail'); return; }
+      app.saveMeta(); app.audio.sfx('upgrade');
     } });
   });
   ui.button('back', W / 2 - 40, py + ph - 30, 80, 24, app.tr('ui.back'), () => { app.screen = 'title'; });

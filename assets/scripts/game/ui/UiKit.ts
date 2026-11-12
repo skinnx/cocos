@@ -59,7 +59,7 @@ export class Button {
     this.bg = new NineSlice(this.node, this.style === 'tab' ? 'ui_tab_off' : 'ui_btn_up');
     this.bg.show(this.style !== 'plain');
     if (opts.icon) this.icon = new SpriteHandle('icon', this.node, opts.icon);
-    if (opts.text !== undefined) this.label = new BitmapText(this.node, { ax: 0.5, ay: 0.5, align: 'center', color: opts.textColor ?? PAL.k, shadow: false });
+    if (opts.text !== undefined) this.label = new BitmapText(this.node, { ax: 0.5, ay: 0.5, align: 'center', color: opts.textColor ?? PAL.w, shadow: false });
     if (opts.text) this.label!.set(opts.text);
     const self = this;
     this.hit = uiInput.add({
@@ -86,7 +86,7 @@ export class Button {
     this.icon.set(name); this.place(); return this;
   }
   setText(t: string, color?: readonly number[]): this {
-    if (!this.label) this.label = new BitmapText(this.node, { ax: 0.5, ay: 0.5, align: 'center', color: PAL.k, shadow: false });
+    if (!this.label) this.label = new BitmapText(this.node, { ax: 0.5, ay: 0.5, align: 'center', color: PAL.w, shadow: false });
     this.label.set(t, color); this.place(); return this;
   }
   setEnabled(v: boolean): this { if (v !== this.enabled) { this.enabled = v; this.refresh(); } return this; }

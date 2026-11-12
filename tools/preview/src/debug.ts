@@ -1,7 +1,7 @@
 // window.__EH debug hook (SPEC §13.4): installed with ?debug=1. Used by tools/verify/e2e.mjs.
 import type { App } from './app';
 import type { Command, Phase } from './core';
-import { gotoPhase } from './bots';
+import { gotoPhase, spawnCrowd } from './bots';
 
 export function installDebug(app: App) {
   const eh = {
@@ -24,6 +24,7 @@ export function installDebug(app: App) {
     fps: () => app.fps(),
     errors: app.errors,
     // extras (preview only)
+    spawn: (n: number) => (app.game ? spawnCrowd(app.game, n) : 0),
     app,
     missing: () => [...app.atlas.missing],
     screen: (name?: string) => { if (name) (app as any).screen = name; return app.screen; },

@@ -6,6 +6,7 @@ import type { Atlas } from './atlas';
 import { toAscii } from './shared';
 
 export type FontSize = 5 | 7;
+/** shadow: null = draw the ink only (no baked outline) — for dark text on light parchment. */
 export interface TextOpts { color?: string; shadow?: string | null; align?: 'left' | 'center' | 'right'; size?: FontSize; alpha?: number }
 
 export const COL = {
@@ -67,7 +68,7 @@ export class BitmapFont {
       if (code !== 32) {
         const g = this.glyph(code, size)!;
         // font7 glyphs are 2px taller: align their baseline with font5 text
-        this.atlas.draw(ctx, g, cx, size === 7 && !FONT7.has(code) ? y + 1 : y, { recolor: color, alpha: o.alpha });
+        this.atlas.draw(ctx, g, cx, size === 7 && !FONT7.has(code) ? y + 1 : y, { recolor: color, noOutline: o.shadow === null, alpha: o.alpha });
       }
       cx += this.adv(code, size);
     }

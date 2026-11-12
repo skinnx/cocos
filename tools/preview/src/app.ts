@@ -1,6 +1,7 @@
 // Preview application shell: canvas + pixel scale, main loop, camera, input routing, event → juice/audio.
 import { Atlas } from './atlas';
 import { Audio } from './audio';
+import { applyRunEmber, META_KEY, RUN_KEY } from '../../../assets/scripts/core/sim/Game';
 import { createGame, defaultMeta, loadMeta, type Command, type Game, type GameEvent, type GameState, type MetaState } from './core';
 import { BitmapFont, COL } from './font';
 import { Fx } from './fx';
@@ -14,7 +15,6 @@ import { t as tr, type Lang } from '../../../assets/scripts/core/data/i18n';
 import { Autoplay } from './autoplay';
 
 export type Screen = 'loading' | 'title' | 'barracks' | 'settings' | 'game';
-const META_KEY = 'emberhold.meta.v1', RUN_KEY = 'emberhold.run.v1';
 
 interface Pointer { id: number; x: number; y: number; sx: number; sy: number; t0: number; moved: boolean; role: 'joy' | 'ui' | 'build' | 'pan' | 'none'; hitId?: string }
 
@@ -135,7 +135,8 @@ export class App {
     const cw = Math.max(1, Math.round(window.innerWidth * dpr)), ch = Math.max(1, Math.round(window.innerHeight * dpr));
     if (this.canvas.width !== cw || this.canvas.height !== ch) { this.canvas.width = cw; this.canvas.height = ch; }
     this.dpr = dpr;
-    const n = zoomSteps(basePixelScale(cw))[this.zoomIdx];
+    // title/meta screens use the n-1 zoom step so the 204-px logo and menus fit; in-run uses the player's pinch step
+    const n = zoomSteps(basePixelScale(cw))[this.screen === 'game' ? this.zoomIdx : 0];
     this.n = n;
     const W = Math.ceil(cw / n), H = Math.ceil(ch / n);
     if (this.buf.width !== W || this.buf.height !== H) { this.buf.width = W; this.buf.height = H; }
@@ -205,7 +206,7 @@ export class App {
   creditEmber() {
     if (this.emberCredited || !this.game) return;
     this.emberCredited = true;
-    this.meta.ember += this.game.emberEarned();
+    applyRunEmber(this.meta, this.game.emberEarned());
     this.saveMeta();
     this.clearRun();
   }
@@ -259,7 +260,7 @@ export class App {
     const s = this.state!;
     if (p === 'night') { this.fx.banner(this.tr('banner.night', { n: s.night }), undefined, COL.purple); this.audio.sfx('horn_night'); this.audio.music(s.boss ? 'boss' : 'night'); }
     if (p === 'day' && prev) { this.audio.music('day'); this.fx.banner(this.tr('phase.day') + ' ' + s.night, undefined, COL.gold, 1.6); }
-    if (p === 'dusk') { this.omensOpen = true; this.fx.banner(this.tr('phase.dusk'), undefined, COL.fire, 1.4); }
+    if (p === 'dusk') this.omensOpen = true;
     if (p === 'dawn') { this.audio.music('day'); this.saveRun(); }
     if (p === 'victory') { this.audio.sfx('victory'); this.fx.fade = 1; }
     if (p === 'defeat') { this.audio.sfx('defeat'); this.fx.fade = 1; }

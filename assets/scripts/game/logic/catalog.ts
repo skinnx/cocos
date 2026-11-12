@@ -1,8 +1,11 @@
 // View-side catalogue helpers on top of core data tables (no 'cc').
 import type { BuildingId, HeroId, MetaState } from '../../core/api';
 import { BUILDINGS, type BuildTab } from '../../core/data/buildings';
-import { HEROES, HERO_IDS } from '../../core/data/heroes';
-import { TALENTS } from '../../core/data/talents';
+import { HERO_IDS } from '../../core/data/heroes';
+import { TALENTS, type TalentId } from '../../core/data/talents';
+import {
+  blueprintCost, buyBlueprint, buyTalent as coreBuyTalent, heroUnlockCost, setStarterHero, talentCost, unlockHero,
+} from '../../core/sim/Meta';
 
 export const TABS: BuildTab[] = ['defense', 'light', 'traps', 'economy'];
 
@@ -60,36 +63,16 @@ export function maxLevel(id: BuildingId): number { return BUILDINGS[id].maxLevel
 export function upgradesInto(id: BuildingId): BuildingId | undefined { return BUILDINGS[id].upgradeTo; }
 
 export const HERO_LIST: HeroId[] = HERO_IDS;
-export function heroUnlockCost(id: HeroId): number { return HEROES[id].unlockEmber; }
 export const BLUEPRINTS: BuildingId[] = (Object.keys(BUILDINGS) as BuildingId[]).filter((id) => BUILDINGS[id].should);
-export function blueprintCost(id: BuildingId): number { return BUILDINGS[id].blueprintCost; }
 export const TALENT_LIST = TALENTS;
+export { heroUnlockCost, blueprintCost, buyBlueprint };
 
-/** Meta purchases (Barracks). Return true when the purchase happened; mutate meta in place. */
-export function buyHero(meta: MetaState, id: HeroId): boolean {
-  if (meta.unlockedHeroes.includes(id)) return false;
-  const c = heroUnlockCost(id);
-  if (meta.ember < c) return false;
-  meta.ember -= c; meta.unlockedHeroes.push(id);
-  return true;
-}
-export function buyBlueprint(meta: MetaState, id: BuildingId): boolean {
-  if (meta.unlockedBlueprints.includes(id) || !BUILDINGS[id].should) return false;
-  const c = blueprintCost(id);
-  if (meta.ember < c) return false;
-  meta.ember -= c; meta.unlockedBlueprints.push(id);
-  return true;
-}
+/** Meta purchases (Barracks) delegate to core/sim/Meta (mutate meta in place; true when it happened). */
+export function buyHero(meta: MetaState, id: HeroId): boolean { return unlockHero(meta, id); }
 export function talentNextCost(meta: MetaState, id: string): number | null {
-  const def = TALENTS.find((t) => t.id === id);
-  if (!def) return null;
-  const lv = meta.talents[id] ?? 0;
-  if (lv >= def.maxLevel) return null;
-  return def.costs[lv];
+  return TALENTS.some((t) => t.id === id) ? talentCost(meta, id as TalentId) : null;
 }
 export function buyTalent(meta: MetaState, id: string): boolean {
-  const c = talentNextCost(meta, id);
-  if (c === null || meta.ember < c) return false;
-  meta.ember -= c; meta.talents[id] = (meta.talents[id] ?? 0) + 1;
-  return true;
+  return TALENTS.some((t) => t.id === id) ? coreBuyTalent(meta, id as TalentId) : false;
 }
+export { setStarterHero };

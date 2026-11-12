@@ -1,6 +1,6 @@
 // Pure bitmap-text layout (no 'cc'). Fonts from the atlas (tools/art/manifest.mjs):
-//   font5_<charCode>  5×7 glyphs for ASCII 32..126, line height 9
-//   font7_<charCode>  7×9 glyphs for 0-9 + - !  (damage numbers), line height 11
+//   font5_<charCode>  5×7 glyphs for ASCII 32..126 (line height 10 incl. outline)
+//   font7_<charCode>  7×9 glyphs for 0-9 + - !  (damage numbers, line height 12)
 export type FontId = 'font5' | 'font7';
 // Glyph sprites carry a 1-px dark outline; their anchor is the top-left of the ink box, and atlas.json gives each
 // glyph a pen `advance` (ink width + 1). Line heights from assets/resources/art/font.json.

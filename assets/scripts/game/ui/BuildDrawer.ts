@@ -36,8 +36,8 @@ class Card {
     this.node = mkNode('card', parent);
     this.bg = new NineSlice(this.node, 'ui_card_common', w, h);
     this.img = new SpriteHandle('img', this.node).anchor(0.5, 0);
-    this.name = new BitmapText(this.node, { ax: 0.5, ay: 1, align: 'center', maxWidth: w - 4, color: PAL.k, shadow: false, scalable: false });
-    this.cost = new BitmapText(this.node, { ax: 0.5, ay: 0, color: PAL.k, shadow: false, scalable: false });
+    this.name = new BitmapText(this.node, { ax: 0.5, ay: 1, align: 'center', maxWidth: w - 4, color: PAL.w, shadow: false, scalable: false });
+    this.cost = new BitmapText(this.node, { ax: 0.5, ay: 0, color: PAL.w, shadow: false, scalable: false });
     this.lock = new SpriteHandle('lock', this.node, 'icon_lock').anchor(0.5, 0.5);
   }
 }
@@ -160,7 +160,7 @@ export class BuildDrawer {
       c.bg.setFrame(this.selected === id ? 'ui_card_legendary' : locked ? 'ui_card_common' : can ? 'ui_card_rare' : 'ui_card_common');
       c.img.set(previewSprite(id)).pos(Math.round(c.w / 2), 13).alpha(locked ? 90 : 255);
       c.name.set(tr(`bld.${id}.name`)).pos(Math.round(c.w / 2), c.h - 3);
-      c.cost.set(locked ? `${tr('ui.locked')}` : costText(cost), can || locked ? PAL.k : PAL.r).pos(Math.round(c.w / 2), 3);
+      c.cost.set(locked ? `${tr('ui.locked')}` : costText(cost), can || locked ? PAL.w : PAL.o).pos(Math.round(c.w / 2), 3);
       c.lock.show(locked).pos(Math.round(c.w / 2), 34);
     }
     const n = items.length;

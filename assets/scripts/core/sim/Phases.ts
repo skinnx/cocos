@@ -1,4 +1,5 @@
 // SPEC §2.2 phase machine DAY → DUSK → NIGHT → DAWN, victory/defeat/endless, horn, false dawn, tutorial.
+import type { HeroId } from '../api';
 import { BALANCE } from '../data/balance';
 import { BOON_FX } from '../data/boons';
 import { BUILDINGS, TAVERN } from '../data/buildings';
@@ -113,7 +114,7 @@ export function startDawn(w: World): void {
   if ((s.buildings as BuildingX[]).some((b) => b.id === 'tavern')) {
     const owned = new Set([...(s.heroes as HeroX[]).map((h) => h.id), ...s.reserve]);
     const pool = HERO_IDS.filter((h) => !owned.has(h));
-    const opts = [];
+    const opts: HeroId[] = [];
     for (let k = 0; k < 2 && pool.length; k++) opts.push(pool.splice(w.rng.int(0, pool.length - 1), 1)[0]);
     const pick = opts.length ? opts[w.rng.int(0, opts.length - 1)] : null;
     if (pick) s.tavernOffer = [{ hero: pick, cost: TAVERN.goldPerHero * (s.heroes.length + s.reserve.length) }];

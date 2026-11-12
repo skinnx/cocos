@@ -49,21 +49,20 @@ export class UI {
 
   text(t: string, x: number, y: number, o?: TextOpts) { return this.font.draw(this.ctx, t, x, y, o); }
 
-  /** Horizontal bar using bar_frame + bar_fill_* (fill tiled from its first columns). */
+  /** Horizontal bar: ui_bar_frame 9-slice + ui_bar_fill_* 9-slice inside the frame's insets. h >= 8 recommended. */
   bar(x: number, y: number, w: number, h: number, r: number, fill: string) {
     const A = this.atlas;
-    A.nine(this.ctx, 'ui_bar_frame', x, y, w, h, Math.min(2, Math.floor(h / 3)));
+    const fr = A.frames['ui_bar_frame'];
+    const [l, t, rr, b] = fr?.slice ?? [2, 2, 2, 2];
+    const k = h < t + b + 2 ? 1 : 0; // very thin bars: 1px border
+    const L = k ? 1 : l, T = k ? 1 : t, R = k ? 1 : rr, B = k ? 1 : b;
+    A.nine(this.ctx, 'ui_bar_frame', x, y, w, h, k ? 1 : undefined);
+    const iw = Math.round((w - L - R) * Math.max(0, Math.min(1, r)));
+    const ih = h - T - B;
+    if (iw <= 0 || ih <= 0) return;
     const ff = A.frames[`ui_${fill}`];
-    if (!ff || !A.img) { A.get(`ui_${fill}`); return; }
-    const b = Math.min(2, Math.floor(h / 3)) || 1;
-    const iw = Math.round((w - 2 * b) * Math.max(0, Math.min(1, r)));
-    if (iw <= 0) return;
-    const ih = h - 2 * b;
-    const sh = Math.min(ff.h, ih);
-    // stretch the fill's vertical gradient to the bar height (rows repeat), never horizontally blur
-    for (let dx = 0; dx < iw; dx += ff.w) {
-      const ww = Math.min(ff.w, iw - dx);
-      this.ctx.drawImage(A.img, ff.x, ff.y, ww, sh, x + b + dx, y + b, ww, ih);
-    }
+    if (!ff) { A.get(`ui_${fill}`); return; }
+    if (iw >= 3 && ih >= 2) A.nine(this.ctx, `ui_${fill}`, x + L, y + T, iw, ih);
+    else this.ctx.drawImage(A.img!, ff.x + 1, ff.y + Math.floor(ff.h / 2), 1, 1, x + L, y + T, iw, ih);
   }
 }

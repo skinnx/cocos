@@ -149,6 +149,20 @@ export class BuildUI {
     const app = this.app, g = app.b, A = app.atlas, game = app.game!, s = game.state;
     const cam = app.camRect();
     const S = (tx: number, ty: number) => ({ x: Math.round(tx * T - cam.x), y: Math.round(ty * T - cam.y) });
+    // existing towers: faint range rings + active synergy links, so the defence layout reads while building
+    for (const b of s.buildings) {
+      const d = BUILDINGS[b.id];
+      if (!b.id.startsWith('tower') || !d.range) continue;
+      const cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+      const sc = S(cx, cy);
+      if (sc.x < -160 || sc.y < -160 || sc.x > app.W + 160 || sc.y > app.H + 160) continue;
+      const range = d.range[b.level - 1] + (b.synergies.includes('embedded') ? BALANCE.synergy.embeddedRangeBonus : 0);
+      for (const p of ringPoints(cx, cy, range, 0.6)) { const q = S(p.x, p.y); A.drawC(g, 'ui_range_dot', q.x, q.y, { alpha: 0.4 }); }
+      if (b.synergies.includes('flame')) {
+        const br = s.buildings.filter((o) => o.id === 'brazier' && o.lit && Math.hypot(o.x + 0.5 - cx, o.y + 0.5 - cy) <= BALANCE.synergy.flameRange + (b.w + 1) / 2);
+        for (const o of br) for (const p of dottedLine(cx, cy, o.x + 0.5, o.y + 0.5, 0.35)) { const q = S(p.x, p.y); A.drawC(g, 'ui_link_dot', q.x, q.y); }
+      }
+    }
     // paint stroke
     if (this.paint && this.sel) {
       const id = this.sel, cost = this.cost(id);
