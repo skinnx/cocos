@@ -4,6 +4,7 @@ import { COL } from './font';
 import { fillMinimap, fmtNum } from './shared';
 import { T } from './world';
 import { ENEMIES } from '../../../assets/scripts/core/data/enemies';
+import { BALANCE } from '../../../assets/scripts/core/data/balance';
 
 let miniCv: HTMLCanvasElement | null = null, miniT = -1;
 
@@ -91,8 +92,8 @@ export function drawHud(app: App) {
   if (!app.build.open) {
     const hb = 30;
     const hx = R - hb, hy = B - hb;
-    ui.iconButton('horn', hx, hy, hb, 'icon_horn', () => app.cmd({ t: 'horn' }), { disabled: s.hornCharge < 1 && s.hornT <= 0 });
-    const n = 12, lit = Math.floor(Math.min(1, s.hornCharge) * n);
+    ui.iconButton('horn', hx, hy, hb, 'icon_horn', () => app.cmd({ t: 'horn' }), { disabled: s.hornCharge < BALANCE.horn.charge || s.hornT > 0 });
+    const n = 12, lit = Math.floor(Math.min(1, s.hornCharge / BALANCE.horn.charge) * n);
     for (let i = 0; i < n; i++) {
       const a = -Math.PI / 2 + (i / n) * Math.PI * 2;
       A.drawC(g, 'ui_range_dot', hx + hb / 2 + Math.cos(a) * (hb / 2 + 3), hy + hb / 2 + Math.sin(a) * (hb / 2 + 3), { alpha: i < lit || s.hornT > 0 ? 1 : 0.25 });

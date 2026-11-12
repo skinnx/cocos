@@ -69,7 +69,7 @@ export function updateBuildings(w: World, dt: number): void {
   for (let i = 0; i < blds.length; i++) {
     const b = blds[i];
     if (b.dead) continue;
-    if (b.constructing > 0) { b.constructing -= dt; if (b.constructing <= 0) { b.constructing = 0; w.lightDirty = true; w.r.snuffDirty = true; } continue; }
+    if (b.constructing > 0) { b.constructing -= dt; if (b.constructing <= 0) { b.constructing = 0; b.hp = Math.min(b.maxHp, b.hp + Math.round(b.maxHp * 0.5)); w.lightDirty = true; w.r.snuffDirty = true; } continue; }
     if (b.offT > 0) { b.offT -= dt; if (b.offT <= 0) { b.offT = 0; w.lightDirty = true; w.r.snuffDirty = true; if (!b.snuffed) emit(w, { t: 'brazier', uid: b.uid, lit: true }); } }
     if (living && night && b.id !== 'hearth' && b.hp < b.maxHp) b.hp = Math.min(b.maxHp, b.hp + b.maxHp * BOON_FX.living * dt);
     if (b.id === 'trap_tar' && b.lit) {

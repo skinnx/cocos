@@ -3,6 +3,7 @@
 //   top-right Pause + minimap · left-middle hero portraits with HP and skill-cooldown rings · bottom-right Hammer and
 //   Rally Horn (charge ring) · bottom-centre "Call night early" (DAY) / "Start night" (DUSK) · edge arrows · boss bar ·
 //   banners · resources flying to the HUD · low-Hearth red vignette.
+import { BALANCE } from '../../core/data/balance';
 import { Sprite, Vec2, type Node } from 'cc';
 import type { GameEvent, GameState, HeroId } from '../../core/api';
 import type { Ctx } from '../Ctx';
@@ -263,7 +264,7 @@ export class Hud {
     if (s.phase === 'day') this.callNight.setText(tr('hud.callNight'));
     this.startNight.show(s.phase === 'dusk');
     this.omensBtn.show(s.phase === 'dusk');
-    const charge = Math.max(0, Math.min(1, s.hornCharge));
+    const charge = Math.max(0, Math.min(1, s.hornCharge / BALANCE.horn.charge));
     this.horn.setEnabled(charge >= 1 && s.hornT <= 0);
     if (charge < 1) {
       this.hornRing.set('icon_horn', true).color(PAL.z[0], PAL.z[1], PAL.z[2], 150).show(true)
