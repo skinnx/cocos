@@ -184,4 +184,3 @@ export default function build() {
   for (const pair of ['grass_dirt', 'grass_sand', 'sand_water']) out.push(...edges(pair));
   return out;
 }
-export { wget };
