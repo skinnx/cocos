@@ -21,13 +21,13 @@ mkdirSync(LOG_DIR, { recursive: true });
 
 function run(cmd, cmdArgs, { env = {}, timeout = 30 * 60_000 } = {}) {
   return new Promise((resolve) => {
-    const child = spawn(cmd, cmdArgs, { cwd: ROOT, env: { ...process.env, FORCE_COLOR: '0', ...env }, shell: false });
+    const child = spawn(cmd, cmdArgs, { cwd: ROOT, env: { ...process.env, FORCE_COLOR: '0', NO_COLOR: '1', ...env }, shell: false });
     let out = '';
     const onData = (d) => { out += d; if (VERBOSE) process.stdout.write(d); };
     child.stdout.on('data', onData); child.stderr.on('data', onData);
     const timer = setTimeout(() => { out += `\n[verify] TIMEOUT after ${timeout / 1000}s\n`; child.kill('SIGKILL'); }, timeout);
     child.on('error', (e) => { out += `\n[verify] spawn error: ${e.message}\n`; });
-    child.on('close', (code) => { clearTimeout(timer); resolve({ code: code ?? 1, out }); });
+    child.on('close', (code) => { clearTimeout(timer); resolve({ code: code ?? 1, out: out.replace(/\x1b\[[0-9;]*m/g, '') }); });
   });
 }
 const npm = (script) => run('npm', ['run', '--silent', script]);
@@ -109,7 +109,7 @@ for (const s of STEPS) {
   let note = '';
   if (status === 'BLOCKED') note = 'BLOCKED (cocos-cli not installable here)';
   else if (s.id === 'e2e') { const m = /avg fps[^\n]*/i.exec(r.out || ''); note = m ? m[0].trim() : ''; }
-  else if (status === 'PASS') { const m = /Tests\s+(\d+ passed[^\n]*)/.exec(r.out || ''); note = m ? m[1].trim() : ''; }
+  else if (status === 'PASS') { const m = /Tests\s+(\d+ passed[^\n]*)/.exec(r.out || ''); note = m ? `${m[1].trim()} tests` : ''; }
   results.push({ ...s, status, ms, note, log });
   console.log(`${status} (${(ms / 1000).toFixed(1)}s)`);
   if (status === 'FAIL') {

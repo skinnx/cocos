@@ -33,7 +33,8 @@ async function main() {
   let port = Number(process.env.E2E_PORT) || 4178;
   for (let i = 0; i < 10 && !server; i++) { try { server = await startServer(port, { quiet: true }); } catch { port++; } }
   if (!server) throw new Error('could not start the preview server');
-  const base = `http://127.0.0.1:${port}/?debug=1`;
+  const SEED = Number(process.env.E2E_SEED) || 7;
+  const base = `http://127.0.0.1:${port}/?debug=1&seed=${SEED}`;
   log('serving', base);
 
   const pw = await loadPlaywright();
@@ -144,6 +145,11 @@ async function main() {
     await sleep(200);
     const w1 = (await S()).walls;
     check('paint drag places a wall line', w1 - w0 >= 5, `${w1 - w0} walls painted`);
+    await tapUI('undo');
+    const wu = (await S()).walls;
+    check('Undo button removes the last stroke', wu === w0, `${w1} -> ${wu}`);
+    await drag(a, b, { steps: 16, stepMs: 30 });
+    await sleep(200);
     // tower: select arrow tower (card 3), tap ghost, confirm ✓
     await tap(await cardC(3));
     check('arrow tower card selected', await ev(() => window.__EH.app.build.sel === 'tower_arrow'));
@@ -154,6 +160,15 @@ async function main() {
     await tapUI('ghostOk');
     await sleep(200);
     check('tower placed via ghost + confirm', (await S()).towers === t0n + 1);
+    // radial menu: deselect the card, tap the tower, upgrade it
+    await tap(await cardC(3));
+    await tap(await tileC(plan.tower.x + 0.5, plan.tower.y + 0.5));
+    await waitFor('radial menu', () => window.__EH.app.build.menu !== null, undefined, 3000);
+    await tapUI('menuUp');
+    await sleep(150);
+    const lvl = await ev((t) => window.__EH.state().buildings.find((q) => q.x === t.x && q.y === t.y).level, plan.tower);
+    check('radial menu upgrades the tower', lvl === 2, `level ${lvl}`);
+    await tap(await tileC(plan.tower.x - 3.5, plan.tower.y - 3.5)); // tap empty ground closes the menu
     // build-mode shot: wall card again, mid-stroke across an obstacle (green + red ghosts), tower range + synergy visible
     await tap(await cardC(0));
     // stroke along the tower's row: crosses the Hearth / brazier / tower (red) and free grass (green), ends next to the
@@ -203,7 +218,7 @@ async function main() {
       const c = a.camRect();
       const on = (e) => e.x * 16 > c.x + 8 && e.x * 16 < c.x + c.w - 8 && e.y * 16 > c.y + 100 && e.y * 16 < c.y + c.h - 50;
       const v = { proj: s.projectiles.filter(on).length, veiled: s.enemies.filter((e) => e.status.veiled && on(e)).length,
-        lit: s.enemies.filter((e) => !e.status.veiled && on(e)).length, nums: a.fx.nums.length, phase: s.phase };
+        lit: s.enemies.filter((e) => !e.status.veiled && on(e)).length, nums: a.fx.nums.filter((n) => n.t < 0.45 && on({ x: n.x / 16, y: n.y / 16 })).length, phase: s.phase };
       // freeze the sim on the first frame that shows the whole fight (rendering + FX keep running)
       v.score = Math.min(v.lit, 6) + Math.min(v.veiled, 4) + Math.min(v.proj, 3);
       v.ok = v.proj > 0 && v.nums > 0 && v.veiled >= 1 && v.lit >= 1 && v.score >= thr;
@@ -213,7 +228,7 @@ async function main() {
     let best = null;
     const tN = Date.now();
     while (Date.now() - tN < 60000) {
-      const v = await ev(view, Math.max(6, 12 - Math.floor((Date.now() - tN) / 8000)));
+      const v = await ev(view, Math.max(4, 12 - Math.floor((Date.now() - tN) / 6000)));
       if (v.phase !== 'night') break;
       if (v.ok) { best = v; break; }
       await ev((k) => window.__EH.speed(k), v.veiled + v.lit > 0 ? 1 : 3);
@@ -290,6 +305,22 @@ async function main() {
     await shot('defeat');
     await tapUI('toTitle');
     check('Defeat → Title', await ev(() => window.__EH.app.screen === 'title'));
+
+    // ── 12b. Pause + Victory → Endless ─────────────────────────────────────
+    await ev(() => window.__EH.start(9));
+    await ev(() => window.__EH.cmd({ t: 'skipTutorial' }));
+    await sleep(300);
+    await tapUI('pause');
+    check('Pause button pauses', await ev(() => window.__EH.app.paused));
+    await tapUI('resume');
+    check('Resume button resumes', await ev(() => !window.__EH.app.paused));
+    await ev(() => window.__EH.goto('victory', { night: 10 }));
+    await waitFor('victory screen', () => window.__EH.state().phase === 'victory');
+    await sleep(700);
+    await tapUI('endless');
+    await sleep(200);
+    s = await ev(() => ({ phase: window.__EH.state().phase, endless: window.__EH.state().endless }));
+    check('Victory → Continue: Endless', s.endless && s.phase === 'dawn', JSON.stringify(s));
 
     // ── 13. FPS with ~150 enemies ───────────────────────────────────────────
     await ev(() => window.__EH.start(3));

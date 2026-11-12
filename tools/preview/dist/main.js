@@ -4,7 +4,7 @@
   var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
   var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
 
-  // assets/scripts/game/logic/atlasData.ts
+  // ../../assets/scripts/game/logic/atlasData.ts
   function defaultAnchor(name, w, h) {
     if (/^(tile_|edge_|ui_|icon_|font|portrait_|boon_|logo)/.test(name)) return [0, 0];
     if (/^(fx_|proj_|enemy_eyes)/.test(name)) return [w / 2, h / 2];
@@ -18,7 +18,7 @@
     return [ix, iy, ix, iy];
   }
 
-  // tools/preview/src/atlas.ts
+  // src/atlas.ts
   var Atlas = class {
     constructor() {
       this.img = null;
@@ -204,7 +204,7 @@
     }
   };
 
-  // tools/preview/src/audio.ts
+  // src/audio.ts
   var ALIAS = {
     horn_night: "night_horn",
     horn_rally: "rally_horn",
@@ -352,7 +352,7 @@
     }
   };
 
-  // assets/scripts/core/data/balance.ts
+  // ../../assets/scripts/core/data/balance.ts
   var BALANCE = {
     tile: 16,
     mapSize: 56,
@@ -384,7 +384,7 @@
   };
   var DT = 1 / BALANCE.simHz;
 
-  // assets/scripts/core/data/talents.ts
+  // ../../assets/scripts/core/data/talents.ts
   var TALENTS = [
     { id: "startWood", maxLevel: 3, costs: [30, 60, 120], perLevel: 20 },
     // +20 starting wood / level
@@ -408,7 +408,7 @@
     return level <= 0 ? 0 : level === 1 ? 0.5 : level === 2 ? 0.75 : 1;
   }
 
-  // assets/scripts/core/data/boons.ts
+  // ../../assets/scripts/core/data/boons.ts
   var B = (id, group, rarity, maxStacks = 1) => ({ id, group, rarity, maxStacks });
   var BOONS = [
     B("sharp", "squad", "common", 3),
@@ -463,7 +463,7 @@
     falseDawnStun: 3
   };
 
-  // assets/scripts/core/data/strings.en.ts
+  // ../../assets/scripts/core/data/strings.en.ts
   var STRINGS_EN = {
     // ── Title / meta screens
     "game.title": "Emberhold",
@@ -756,7 +756,7 @@
     "talent.hornPrecharge.desc": "Rally Horn starts 50/75/100% charged."
   };
 
-  // assets/scripts/core/data/strings.vi.ts
+  // ../../assets/scripts/core/data/strings.vi.ts
   var STRINGS_VI = {
     "game.title": "Emberhold",
     "ui.play": "Ch\u01A1i",
@@ -1034,7 +1034,7 @@
     "talent.hornPrecharge.desc": "T\xF9 v\xE0 n\u1EA1p s\u1EB5n 50/75/100%."
   };
 
-  // assets/scripts/core/data/i18n.ts
+  // ../../assets/scripts/core/data/i18n.ts
   var TABLES = { en: STRINGS_EN, vi: STRINGS_VI };
   function t(key, lang = "en", params) {
     let s = TABLES[lang]?.[key] ?? STRINGS_EN[key] ?? key;
@@ -1042,7 +1042,7 @@
     return s;
   }
 
-  // assets/scripts/core/data/buildings.ts
+  // ../../assets/scripts/core/data/buildings.ts
   var R = (wood, stone, gold) => ({ wood, stone, gold });
   var BUILDINGS = {
     hearth: {
@@ -1221,7 +1221,7 @@
   var TURRET = { dmg: 5, rate: 2, range: 5, ttl: 8, hp: 60 };
   var TAVERN = { goldPerHero: 40 };
 
-  // assets/scripts/core/data/heroes.ts
+  // ../../assets/scripts/core/data/heroes.ts
   var HEROES = {
     knight: { id: "knight", hp: 120, dmg: 10, rate: 1.2, range: 1.1, melee: true, dtype: "impact", hitsFlying: false, skill: "shieldBash", skillCd: 8, unlockEmber: 0 },
     ranger: { id: "ranger", hp: 70, dmg: 7, rate: 1.5, range: 5, melee: false, dtype: "pierce", projectile: "arrow", hitsFlying: true, skill: "arrowRain", skillCd: 10, unlockEmber: 50 },
@@ -1241,7 +1241,7 @@
     passive: { tauntRange: 2, rangerDarkMul: 1.25, tinkerRepairHps: 8, tinkerRepairRange: 3, tinkerCostMul: 0.9, clericHealHps: 6, clericRange: 4, rogueSpeedMul: 1.3 }
   };
 
-  // assets/scripts/core/data/enemies.ts
+  // ../../assets/scripts/core/data/enemies.ts
   var TAG_ARMORED = 1;
   var TAG_SWARM = 2;
   var TAG_FLYING = 4;
@@ -1263,7 +1263,7 @@
   var MOSSBACK = { crushDps: 40, shellEvery: 8, shellSecs: 3, shellSpawn: 6, heroMulInShell: 2, enrageFrac: 0.3, enrageSpeed: 0.8 };
   var UNLIT = { pulseEvery: 12, pulseRadius: 8, pulseSecs: 6, hearthLightMul: 0.6, summonEvery: 10, summonWisps: 4, teleportAt: [0.66, 0.33], healFrac: 0.05 };
 
-  // assets/scripts/core/sim/Rng.ts
+  // ../../assets/scripts/core/sim/Rng.ts
   function mulberry32Next(st2) {
     let t2 = st2.s = st2.s + 1831565813 | 0;
     t2 = Math.imul(t2 ^ t2 >>> 15, t2 | 1);
@@ -1323,7 +1323,7 @@
     return (h ^ h >>> 16) >>> 0 & 255;
   }
 
-  // assets/scripts/core/sim/MapGen.ts
+  // ../../assets/scripts/core/sim/MapGen.ts
   var HEARTH_X = 27;
   var HEARTH_Y = 27;
   var CENTER = 28;
@@ -1547,7 +1547,7 @@
     return { size, biome, variant, nodes, pois };
   }
 
-  // assets/scripts/core/sim/World.ts
+  // ../../assets/scripts/core/sim/World.ts
   var EMODE = { path: 0, chase: 1, attackBld: 2, snuff: 3, ret: 4, idle: 5 };
   function newUid(w) {
     return ++w.r.uid;
@@ -1585,7 +1585,7 @@
   var isWallLike = (id) => id === "wall_wood" || id === "wall_stone" || id === "gate";
   var isTrap = (id) => id === "trap_spikes" || id === "trap_tar";
 
-  // assets/scripts/core/sim/Light.ts
+  // ../../assets/scripts/core/sim/Light.ts
   var LIGHT_ALPHA = { lit: 0, dim: 0.45, dark: 0.85, fog: 1 };
   function hearthLightRadius(w) {
     const base = BALANCE.light.hearth[w.s.hearthLevel - 1] + boonStacks(w, "bigfire") * BOON_FX.bigfire;
@@ -1675,7 +1675,7 @@
     return w.s.map.light[cy * w.size + cx];
   }
 
-  // assets/scripts/core/sim/FlowField.ts
+  // ../../assets/scripts/core/sim/FlowField.ts
   var DIRS = [
     [1, 0, 1],
     [-1, 0, 1],
@@ -1859,7 +1859,7 @@
     if (Math.abs(b.hp - b.pathHp) >= BALANCE.path.hpChangeFrac * b.maxHp) w.r.fieldDirty = true;
   }
 
-  // assets/scripts/core/sim/Combat.ts
+  // ../../assets/scripts/core/sim/Combat.ts
   function typeMul(dtype, tags) {
     let m = 1;
     if (dtype === "pierce" && tags & TAG_ARMORED) m *= 0.5;
@@ -2049,7 +2049,7 @@
     e.status.stun = Math.max(e.status.stun, secs);
   }
 
-  // assets/scripts/core/sim/Economy.ts
+  // ../../assets/scripts/core/sim/Economy.ts
   var ZERO = { wood: 0, stone: 0, gold: 0 };
   function scaleRes(r, m) {
     return { wood: Math.ceil(r.wood * m - 1e-9) + 0, stone: Math.ceil(r.stone * m - 1e-9) + 0, gold: Math.ceil(r.gold * m - 1e-9) + 0 };
@@ -2431,7 +2431,7 @@
     }
   }
 
-  // assets/scripts/core/sim/Grid.ts
+  // ../../assets/scripts/core/sim/Grid.ts
   function rebuildTerrain(w) {
     const n = w.size;
     w.terrain.fill(0);
@@ -2515,7 +2515,7 @@
     return true;
   }
 
-  // assets/scripts/core/sim/Query.ts
+  // ../../assets/scripts/core/sim/Query.ts
   function forEnemiesInRange(w, x, y, r, fn) {
     const arr = w.s.enemies;
     const r2 = r * r;
@@ -2547,7 +2547,7 @@
     return found;
   }
 
-  // assets/scripts/core/sim/Projectiles.ts
+  // ../../assets/scripts/core/sim/Projectiles.ts
   function fire(w, s) {
     const tx = s.tx ?? s.target?.x ?? s.x, ty = s.ty ?? s.target?.y ?? s.y;
     const dx = tx - s.x, dy = ty - s.y, d = Math.hypot(dx, dy) || 1;
@@ -2788,7 +2788,7 @@
     arr.length = j;
   }
 
-  // assets/scripts/core/sim/Pois.ts
+  // ../../assets/scripts/core/sim/Pois.ts
   function attackablePoi(w, x, y, range) {
     let best = null, bd = Infinity;
     for (const p of w.s.pois) {
@@ -2872,7 +2872,7 @@
     for (const a of added) w.s.pois.push(a);
   }
 
-  // assets/scripts/core/sim/Squad.ts
+  // ../../assets/scripts/core/sim/Squad.ts
   var HERO_RADIUS = 0.3;
   function createHero(w, id, x, y, level = 1) {
     const h = {
@@ -3359,7 +3359,7 @@
     }
   }
 
-  // assets/scripts/core/sim/Boons.ts
+  // ../../assets/scripts/core/sim/Boons.ts
   function makeBoon(w, d) {
     return { id: d.id, name: t(`boon.${d.id}.name`), desc: t(`boon.${d.id}.desc`), group: d.group, rarity: d.rarity, stacks: boonStacks(w, d.id), maxStacks: d.maxStacks };
   }
@@ -3453,7 +3453,7 @@
     return true;
   }
 
-  // assets/scripts/core/sim/Enemies.ts
+  // ../../assets/scripts/core/sim/Enemies.ts
   function spawnEnemy(w, id, x, y, o = {}) {
     if (w.s.enemies.length >= BALANCE.caps.enemies && !ENEMIES[id].boss) return null;
     const d = ENEMIES[id];
@@ -4099,7 +4099,7 @@
     arr.length = j;
   }
 
-  // assets/scripts/core/sim/Meta.ts
+  // ../../assets/scripts/core/sim/Meta.ts
   var META_KEY = "emberhold.meta.v1";
   var RUN_KEY = "emberhold.run.v1";
   function defaultMeta() {
@@ -4191,7 +4191,7 @@
     return a;
   }
 
-  // assets/scripts/core/sim/Spawner.ts
+  // ../../assets/scripts/core/sim/Spawner.ts
   function nightBudget(n) {
     if (n <= 10) return BALANCE.budget(n);
     return BALANCE.budget(10) * Math.pow(BALANCE.endlessMul, n - 10);
@@ -4364,7 +4364,7 @@
     }
   }
 
-  // assets/scripts/core/sim/Towers.ts
+  // ../../assets/scripts/core/sim/Towers.ts
   function towerRange(w, b) {
     const d = BUILDINGS[b.id];
     let r = d.range ? d.range[b.level - 1] : 0;
@@ -4644,7 +4644,7 @@
     w.s.zones = w.s.zones.filter((z) => z.t > 0);
   }
 
-  // assets/scripts/core/sim/Phases.ts
+  // ../../assets/scripts/core/sim/Phases.ts
   function dayDuration(w) {
     const base = w.s.night <= 1 ? BALANCE.day.firstDaySeconds : BALANCE.day.seconds;
     return base + TALENT_BY_ID.longDay.perLevel * (w.meta.talents.longDay ?? 0);
@@ -4884,7 +4884,7 @@
     else if (s.tutorial === 3 && s.buildings.some((b) => b.id === "tower_arrow" && b.synMask & 1)) advanceTutorial(w, 4);
   }
 
-  // assets/scripts/core/sim/SpatialHash.ts
+  // ../../assets/scripts/core/sim/SpatialHash.ts
   var SpatialHash = class {
     constructor(size, cell = 2, cap = 1024) {
       __publicField(this, "cell");
@@ -4923,7 +4923,7 @@
     }
   };
 
-  // assets/scripts/core/sim/Game.ts
+  // ../../assets/scripts/core/sim/Game.ts
   var SAVE_VERSION = 1;
   function newWorld(seed, meta) {
     const size = BALANCE.mapSize;
@@ -5384,7 +5384,7 @@
     return g.w;
   }
 
-  // assets/scripts/game/logic/edges.ts
+  // ../../assets/scripts/game/logic/edges.ts
   var PAIRS = ["grass_dirt", "grass_sand", "sand_water"];
   function materialOf(b) {
     switch (b) {
@@ -5458,7 +5458,7 @@
     return out;
   }
 
-  // assets/scripts/game/logic/light.ts
+  // ../../assets/scripts/game/logic/light.ts
   var TEXELS_PER_TILE = 4;
   var DARK_RGB = [27, 27, 47];
   var WARM_RGB = [247, 169, 59];
@@ -5519,7 +5519,7 @@
     }
   }
 
-  // assets/scripts/game/logic/minimap.ts
+  // ../../assets/scripts/game/logic/minimap.ts
   var MINI_COLORS = {
     water: [42, 74, 138],
     shore: [185, 138, 86],
@@ -5578,7 +5578,7 @@
     for (const h of m.heroes) put(buf, n, h.x, h.y, h.leader ? MINI_COLORS.leader : MINI_COLORS.hero);
   }
 
-  // assets/scripts/game/logic/gestures.ts
+  // ../../assets/scripts/game/logic/gestures.ts
   function classifyDrag(dx, dy) {
     const ax = Math.abs(dx), ay = Math.abs(dy);
     const t2 = Math.tan(Math.PI / 8);
@@ -5666,7 +5666,7 @@
     return out;
   }
 
-  // assets/scripts/game/logic/camera.ts
+  // ../../assets/scripts/game/logic/camera.ts
   var LOOK_AHEAD_TILES = 1.5;
   var SMOOTH_SECONDS = 0.15;
   function basePixelScale(deviceWidthPx) {
@@ -5701,7 +5701,7 @@
     return Math.max(0, Math.min(2, i));
   }
 
-  // assets/scripts/game/logic/sprites.ts
+  // ../../assets/scripts/game/logic/sprites.ts
   var ANIM_FPS = { idle: 3, walk: 8, attack: 10, building: 6, fx: 12, water: 1.5, rift: 6 };
   function animFrame(t2, fps, count, loop = true) {
     if (count <= 1) return 0;
@@ -5852,7 +5852,7 @@
     return null;
   }
 
-  // assets/scripts/game/logic/text.ts
+  // ../../assets/scripts/game/logic/text.ts
   var FONT7_CHARS = new Set([..."0123456789+-!"].map((c) => c.charCodeAt(0)));
   function toAscii(s) {
     return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").replace(/[^\x20-\x7e\n]/g, "?");
@@ -5864,7 +5864,7 @@
     return String(v);
   }
 
-  // tools/preview/src/font.ts
+  // src/font.ts
   var COL = {
     white: "#f6f2e6",
     ink: "#1b1b2f",
@@ -5951,7 +5951,7 @@
     }
   };
 
-  // tools/preview/src/fx.ts
+  // src/fx.ts
   var Fx = class {
     constructor(atlas, font) {
       this.atlas = atlas;
@@ -6098,7 +6098,7 @@
     }
   };
 
-  // tools/preview/src/info.ts
+  // src/info.ts
   function buildingIcon(id, level = 1) {
     switch (id) {
       case "hearth":
@@ -6128,7 +6128,7 @@
     }
   }
 
-  // tools/preview/src/light.ts
+  // src/light.ts
   var LightOverlay = class {
     constructor() {
       this.cv = document.createElement("canvas");
@@ -6153,7 +6153,7 @@
     }
   };
 
-  // tools/preview/src/world.ts
+  // src/world.ts
   var T = 16;
   var _WorldRenderer = class _WorldRenderer {
     constructor(atlas, fx) {
@@ -6390,7 +6390,7 @@
   _WorldRenderer.FEET = 3;
   var WorldRenderer = _WorldRenderer;
 
-  // tools/preview/src/build.ts
+  // src/build.ts
   var TABS = ["defense", "light", "traps", "economy"];
   var CARD_W = 50;
   var CARD_H = 76;
@@ -6429,6 +6429,14 @@
       this.open = true;
       this.freeCam = true;
       this.menu = null;
+      if (s.phase === "dusk") {
+        const h = s.buildings.find((b) => b.uid === s.hearthUid);
+        if (h) {
+          this.app.cam.x = (h.x + h.w / 2) * 16;
+          this.app.cam.y = (h.y + h.h / 2) * 16 + 24;
+          this.app.clampCam();
+        }
+      }
       this.app.cmd({ t: "buildMode", on: true });
       this.app.joy = null;
       this.app.cmd({ t: "move", dir: { x: 0, y: 0 } });
@@ -6585,6 +6593,21 @@
       const app2 = this.app, g = app2.b, A = app2.atlas, game = app2.game, s = game.state;
       const cam = app2.camRect();
       const S2 = (tx, ty) => ({ x: Math.round(tx * T - cam.x), y: Math.round(ty * T - cam.y) });
+      if (this.paint && this.sel) {
+        const id = this.sel, cost = this.cost(id);
+        const plan = paintPlan(this.paint.cells, (c) => {
+          const r = game.canPlace(id, c.x, c.y);
+          return r.ok || r.reason === "cost";
+        }, cost, s.res);
+        this.paint.cells.forEach((c, i) => {
+          const p = S2(c.x, c.y);
+          if (plan.ok[i]) {
+            A.draw(g, buildingIcon(id), p.x + 8, p.y + 16, { alpha: 0.7 });
+            A.draw(g, "ui_build_ok", p.x, p.y);
+          } else A.draw(g, "ui_build_bad", p.x, p.y, { alpha: 0.8 });
+        });
+        costTag(app2, plan.total, this.paint.px, this.paint.py - 22, plan.count);
+      }
       const focus = /* @__PURE__ */ new Set();
       if (this.menu !== null) focus.add(this.menu);
       if (this.paint) for (const b of s.buildings) {
@@ -6616,21 +6639,6 @@
             A.drawC(g, "ui_link_dot", q.x, q.y);
           }
         }
-      }
-      if (this.paint && this.sel) {
-        const id = this.sel, cost = this.cost(id);
-        const plan = paintPlan(this.paint.cells, (c) => {
-          const r = game.canPlace(id, c.x, c.y);
-          return r.ok || r.reason === "cost";
-        }, cost, s.res);
-        this.paint.cells.forEach((c, i) => {
-          const p = S2(c.x, c.y);
-          if (plan.ok[i]) {
-            A.draw(g, buildingIcon(id), p.x + 8, p.y + 16, { alpha: 0.7 });
-            A.draw(g, "ui_build_ok", p.x, p.y);
-          } else A.draw(g, "ui_build_bad", p.x, p.y, { alpha: 0.8 });
-        });
-        costTag(app2, plan.total, this.paint.px, this.paint.py - 22, plan.count);
       }
       if (this.ghost && this.sel) {
         const id = this.sel, d = BUILDINGS[id];
@@ -6877,7 +6885,7 @@
     g.globalAlpha = 1;
   }
 
-  // tools/preview/src/hud.ts
+  // src/hud.ts
   var miniCv = null;
   var miniT = -1;
   function drawHud(app2) {
@@ -7153,7 +7161,7 @@
     }, { icon: "icon_moon" });
   }
 
-  // tools/preview/src/screens.ts
+  // src/screens.ts
   function drawScreens(app2) {
     const s = app2.state;
     if (app2.screen === "loading") {
@@ -7483,7 +7491,7 @@
     ui.button("toTitle", px + 8, by, pw - 16, 24, app2.tr("end.title"), () => app2.toTitle(), { icon: "icon_play" });
   }
 
-  // tools/preview/src/ui.ts
+  // src/ui.ts
   var UI = class {
     constructor(atlas, font, ctx) {
       this.atlas = atlas;
@@ -7562,7 +7570,7 @@
     }
   };
 
-  // assets/scripts/core/bots/nav.ts
+  // ../../assets/scripts/core/bots/nav.ts
   var BLOCK_NODES = /* @__PURE__ */ new Set(["pine", "oak", "rock_l", "ore"]);
   function walkGrid(s) {
     const n = s.map.size;
@@ -7663,7 +7671,7 @@
     game.cmd({ t: "move", dir: { x: 0, y: 0 } });
   }
 
-  // assets/scripts/core/bots/BotCore.ts
+  // ../../assets/scripts/core/bots/BotCore.ts
   var C = 28;
   var RING = { x0: 23, y0: 23, x1: 32, y1: 32 };
   var GATES = [{ x: 28, y: 23 }, { x: 27, y: 32 }];
@@ -7903,11 +7911,11 @@
     }
   }
 
-  // assets/scripts/core/bots/index.ts
+  // ../../assets/scripts/core/bots/index.ts
   var PREF = ["reload", "hawk", "sharp", "boulder", "mirror", "thick", "living", "falsedawn", "twin", "bigfire", "mason", "rebirth", "spikes", "ash", "leech", "cooldown", "harvest", "embers"];
   var AutoplayBot = (game) => botStep(game, { build: true, extras: true, boonPref: PREF });
 
-  // tools/preview/src/bots.ts
+  // src/bots.ts
   var autoplayBot = AutoplayBot;
   function clearNight(g) {
     const w = worldOf(g), s = w.s;
@@ -7982,7 +7990,7 @@
     return k;
   }
 
-  // tools/preview/src/autoplay.ts
+  // src/autoplay.ts
   var Autoplay = class {
     constructor(app2) {
       this.app = app2;
@@ -8023,7 +8031,7 @@
     }
   };
 
-  // tools/preview/src/app.ts
+  // src/app.ts
   var App = class {
     constructor() {
       this.buf = document.createElement("canvas");
@@ -8146,7 +8154,8 @@
       this.fx.fade = 1;
     }
     newRun(seed, saved) {
-      this.seedN = seed ?? Date.now() % 1e5;
+      const urlSeed = /[?&]seed=(\d+)/.exec(location.search);
+      this.seedN = seed ?? (urlSeed ? Number(urlSeed[1]) : Date.now() % 1e5);
       let game;
       try {
         game = createGame({ seed: this.seedN, meta: this.meta, saved: saved ?? void 0 });
@@ -8767,7 +8776,7 @@
     }
   };
 
-  // tools/preview/src/debug.ts
+  // src/debug.ts
   function installDebug(app2) {
     const eh = {
       state: () => app2.state,
@@ -8829,7 +8838,7 @@
     window.__EH = eh;
   }
 
-  // tools/preview/src/main.ts
+  // src/main.ts
   var app = new App();
   var debug = /[?&]debug=1/.test(location.search);
   window.addEventListener("error", (e) => app.reportError(e.error || e.message));
@@ -8839,8 +8848,7 @@
   app.resize();
   requestAnimationFrame(app.frame);
   app.boot().then(() => {
-    const m = /[?&]seed=(\d+)/.exec(location.search);
-    if (/[?&]autostart=1/.test(location.search)) app.newRun(m ? Number(m[1]) : 1);
+    if (/[?&]autostart=1/.test(location.search)) app.newRun();
   }).catch((e) => app.reportError(e));
 })();
 //# sourceMappingURL=main.js.map

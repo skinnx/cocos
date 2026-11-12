@@ -37,6 +37,10 @@ export class BuildUI {
     const s = this.app.game.state;
     if (s.phase !== 'day' && s.phase !== 'night' && s.phase !== 'dusk') return;
     this.open = true; this.freeCam = true; this.menu = null;
+    if (s.phase === 'dusk') { // SPEC §2.2: dusk recentres the camera on the Hearth
+      const h = s.buildings.find((b) => b.uid === s.hearthUid);
+      if (h) { this.app.cam.x = (h.x + h.w / 2) * 16; this.app.cam.y = (h.y + h.h / 2) * 16 + 24; this.app.clampCam(); }
+    }
     this.app.cmd({ t: 'buildMode', on: true });
     this.app.joy = null; this.app.cmd({ t: 'move', dir: { x: 0, y: 0 } }); this.app.sentDir = { x: 0, y: 0 };
     this.app.audio.sfx('ui_click');
@@ -149,6 +153,17 @@ export class BuildUI {
     const app = this.app, g = app.b, A = app.atlas, game = app.game!, s = game.state;
     const cam = app.camRect();
     const S = (tx: number, ty: number) => ({ x: Math.round(tx * T - cam.x), y: Math.round(ty * T - cam.y) });
+    // paint stroke
+    if (this.paint && this.sel) {
+      const id = this.sel, cost = this.cost(id);
+      const plan = paintPlan(this.paint.cells, (c) => { const r = game.canPlace(id, c.x, c.y); return r.ok || r.reason === 'cost'; }, cost, s.res);
+      this.paint.cells.forEach((c, i) => {
+        const p = S(c.x, c.y);
+        if (plan.ok[i]) { A.draw(g, buildingIcon(id), p.x + 8, p.y + 16, { alpha: 0.7 }); A.draw(g, 'ui_build_ok', p.x, p.y); }
+        else A.draw(g, 'ui_build_bad', p.x, p.y, { alpha: 0.8 });
+      });
+      costTag(app, plan.total, this.paint.px, this.paint.py - 22, plan.count);
+    }
     // existing towers touched by the current action (wall stroke next to them / radial menu): range ring (incl. the
     // wall-embedded bonus the stroke would give) + their active flame links. Not all towers, to keep the map readable.
     const focus = new Set<number>();
@@ -176,17 +191,6 @@ export class BuildUI {
         const br = s.buildings.filter((o) => o.id === 'brazier' && o.lit && Math.hypot(o.x + 0.5 - cx, o.y + 0.5 - cy) <= BALANCE.synergy.flameRange + (b.w + 1) / 2);
         for (const o of br) for (const p of dottedLine(cx, cy, o.x + 0.5, o.y + 0.5, 0.35)) { const q = S(p.x, p.y); A.drawC(g, 'ui_link_dot', q.x, q.y); }
       }
-    }
-    // paint stroke
-    if (this.paint && this.sel) {
-      const id = this.sel, cost = this.cost(id);
-      const plan = paintPlan(this.paint.cells, (c) => { const r = game.canPlace(id, c.x, c.y); return r.ok || r.reason === 'cost'; }, cost, s.res);
-      this.paint.cells.forEach((c, i) => {
-        const p = S(c.x, c.y);
-        if (plan.ok[i]) { A.draw(g, buildingIcon(id), p.x + 8, p.y + 16, { alpha: 0.7 }); A.draw(g, 'ui_build_ok', p.x, p.y); }
-        else A.draw(g, 'ui_build_bad', p.x, p.y, { alpha: 0.8 });
-      });
-      costTag(app, plan.total, this.paint.px, this.paint.py - 22, plan.count);
     }
     // placed-ghost
     if (this.ghost && this.sel) {

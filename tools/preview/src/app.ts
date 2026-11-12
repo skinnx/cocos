@@ -101,7 +101,8 @@ export class App {
   }
 
   newRun(seed?: number, saved?: string) {
-    this.seedN = seed ?? (Date.now() % 100000);
+    const urlSeed = /[?&]seed=(\d+)/.exec(location.search);
+    this.seedN = seed ?? (urlSeed ? Number(urlSeed[1]) : Date.now() % 100000);
     let game: Game;
     try {
       game = createGame({ seed: this.seedN, meta: this.meta, saved: saved ?? undefined });

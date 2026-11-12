@@ -12,6 +12,5 @@ app.installInput();
 app.resize();
 requestAnimationFrame(app.frame);
 app.boot().then(() => {
-  const m = /[?&]seed=(\d+)/.exec(location.search);
-  if (/[?&]autostart=1/.test(location.search)) app.newRun(m ? Number(m[1]) : 1);
+  if (/[?&]autostart=1/.test(location.search)) app.newRun();
 }).catch((e) => app.reportError(e));
