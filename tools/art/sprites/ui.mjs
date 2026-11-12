@@ -28,23 +28,17 @@ function panelStone() {
 }
 // Buttons: 3/4 look like the walls — lit top face + darker front lip; pressed = face sunk by 2px.
 function button(state) {
-  const W = 24, H = 20;
-  const pal = state === 'disabled' ? { hi: 'v', face: 'u', side: 't', lip: 's', deep: 'n' } : { hi: 'z', face: 'y', side: 'x', lip: 'x', deep: 'r' };
-  const pressed = state === 'down';
-  const lipH = pressed ? 1 : 3, top = pressed ? 2 : 0;
+  const W = 24, H = 20, pressed = state === 'down';
+  const pal = state === 'disabled' ? { hi: 'v', face: 'u', lip: 't', seam: 's', deep: 's' } : { hi: 'z', face: 'y', lip: 'x', seam: 'r', deep: 'r' };
+  const top = pressed ? 2 : 0, lipH = pressed ? 2 : 4; // pressed: face sinks 2px, front lip shrinks
   const p = P(W, H);
-  const body = ringPanel(W, H - top, ['k', { t: pal.hi, l: pal.hi, b: pal.deep, r: pal.side, m: pal.face }], pal.face, 2);
-  p.stamp(body, 0, top);
-  // front lip: rows above the bottom outline
-  for (let j = 0; j < lipH; j++) for (let x = 1; x < W - 1; x++) {
-    const y = H - 2 - j; if (p.get(x, y) === '.' || p.get(x, y) === 'k') continue;
-    p.set(x, y, j === 0 ? pal.deep : pal.lip);
+  p.stamp(ringPanel(W, H - top, ['k', { t: pal.hi, l: pal.hi, b: pal.deep, r: pal.lip, m: pal.face }], pal.face, 2), 0, top);
+  // front face (lip) like the walls: dark seam, lip body, darkest bottom row
+  for (let x = 1; x < W - 1; x++) for (let j = 1; j <= lipH; j++) {
+    const y = H - 1 - j; if (p.get(x, y) === '.' || p.get(x, y) === 'k') continue;
+    p.set(x, y, j === lipH ? pal.seam : j === 1 ? pal.deep : x === 1 || x === 2 ? pal.face : pal.lip);
   }
-  // lip/face seam highlight so the face reads as a raised slab
-  for (let x = 2; x < W - 2; x++) p.set(x, H - 2 - lipH, pal.side);
-  // corner glints (never stretched: inside the 6px slice)
-  p.set(2, top + 2, 'w');
-  if (state === 'disabled') { p.set(2, top + 2, 'v'); }
+  p.set(2, top + 2, state === 'disabled' ? 'v' : 'w').set(3, top + 2, pal.hi).set(2, top + 3, pal.hi);
   return p;
 }
 function tab(on) {
@@ -56,19 +50,22 @@ function tab(on) {
   else p.set(2, 2, 'z');
   return p;
 }
+// Card frames: rarity is coded by corner SHAPE as well as colour (square rivet / gem / gem + flame flourish).
 function card(rarity) {
-  const R = { common: { hi: 'v', m: 'u', lo: 't', d: 's', gem: ['v', 'u', 't'] },
-    rare: { hi: 'D', m: 'C', lo: 'B', d: 'n', gem: ['E', 'D', 'C'] },
-    legendary: { hi: 'z', m: 'y', lo: 'x', d: 'r', gem: ['w', 'L', 'M'] } }[rarity];
-  const p = ringPanel(32, 40, ['k', { t: R.hi, l: R.hi, b: R.lo, r: R.lo, m: R.m }, R.m, { t: R.m, l: R.m, b: R.lo, r: R.lo }, 'k',
-    { t: 'k', l: 'k', b: 'n', r: 'n' }], 'n', 3);
-  // corner jewels, identical on each corner (light from top-left)
-  const [g0, g1, g2] = R.gem;
-  for (const [x, y] of [[1, 1], [26, 1], [1, 34], [26, 34]]) {
-    put(p, ['.kkk.', 'k' + g0 + g1 + g1 + 'k', 'k' + g1 + g1 + g2 + 'k', 'k' + g1 + g2 + g2 + 'k', '.kkk.'], x, y);
+  const R = { common: { hi: 'v', m: 'u', lo: 't', d: 's' }, rare: { hi: 'D', m: 'C', lo: 'B', d: 'B' }, legendary: { hi: 'z', m: 'y', lo: 'x', d: 'r' } }[rarity];
+  const W = 36, H = 46;
+  const p = ringPanel(W, H, ['k', { t: R.hi, l: R.hi, b: R.d, r: R.d, m: R.m }, R.m, { t: R.m, l: R.m, b: R.lo, r: R.lo }, 'k', { t: 'k', l: 'k', b: 'm', r: 'm' }], 'n', 3);
+  const corner = {
+    common: ['.kkkkk.', 'kvvvuuk', 'kvuuutk', 'kvuuutk', 'kuuuttk', 'kuttttk', '.kkkkk.'],
+    rare: ['...k...', '..kEk..', '.kEDDk.', 'kEDDCBk', '.kDCBk.', '..kBk..', '...k...'],
+    legendary: ['...k...', '..kwk..', '.kwLLk.', 'kwLLMmk', '.kLMmk.', '..kmk..', '...k...'],
+  }[rarity];
+  for (const [x, y] of [[0, 0], [W - 7, 0], [0, H - 7], [W - 7, H - 7]]) put(p, corner, x, y);
+  if (rarity === 'legendary') { // flame flourishes beside the top gems, all inside the 12px corner slice
+    for (const x of [7, W - 11]) put(p, ['..k.', '.kzk', 'kzyk', 'kyxk', '.kk.'].map((r) => r), x, 0);
+    for (const x of [7, W - 11]) put(p, ['.kk.', 'kxyk', 'kyzk', '.kzk', '..k.'], x, H - 5);
   }
-  if (rarity === 'legendary') for (const [x, y] of [[6, 2], [25, 2], [6, 37], [25, 37]]) p.set(x, y, 'w');
-  if (rarity === 'rare') for (const [x, y] of [[6, 2], [25, 2]]) p.set(x, y, 'E');
+  if (rarity === 'rare') for (const x of [8, W - 9]) { p.set(x, 1, 'E'); }
   return p;
 }
 function barFrame() {
@@ -112,10 +109,10 @@ function joyKnob() {
 // Build-mode cell markers (accessibility: ✓ = OK, diagonal hatch = BAD; colour is only a second cue).
 function buildOk() {
   const p = P();
-  for (let i = 2; i < 14; i++) { p.set(i, 1, 'd'); p.set(1, i, 'd'); p.set(i, 14, 'b'); p.set(14, i, 'b'); }
+  for (let i = 2; i < 14; i++) { p.set(i, 1, 'e'); p.set(1, i, 'e'); p.set(i, 14, 'c'); p.set(14, i, 'c'); }
   p.set(1, 1, '.').set(14, 1, '.').set(1, 14, '.').set(14, 14, '.');
-  thick(p, 4, 8, 6, 10, 0.75, 'd'); thick(p, 6, 10, 11, 5, 0.75, 'd');
-  p.set(6, 11, 'c').set(7, 10, 'c').set(11, 4, 'e');
+  thick(p, 4, 8, 6, 10, 0.75, 'e'); thick(p, 6, 10, 11, 5, 0.75, 'e');
+  p.set(6, 11, 'd').set(7, 10, 'd').set(11, 4, 'w');
   return p.outline();
 }
 function buildBad() {
@@ -221,22 +218,25 @@ const ICONS = {
     p.set(12, 11, 'z').set(13, 12, 'y').set(11, 12, 'y').set(12, 13, 'y').set(12, 10, 'y');
     return out(p);
   },
-  sun() {
-    const p = P(), c = 7.5;
-    for (let k = 0; k < 8; k++) {
-      const a = (k * Math.PI) / 4, x = c + Math.cos(a) * 5.9, y = c + Math.sin(a) * 5.9;
-      if (k % 2 === 0) thick(p, Math.round(x - 0.5) + (Math.cos(a) > 0.5 ? 0 : 0), Math.round(y - 0.5), Math.round(c + Math.cos(a) * 6.3 - 0.5), Math.round(c + Math.sin(a) * 6.3 - 0.5), 0.9, 'y');
-      else p.set(Math.round(x - 0.5), Math.round(y - 0.5), 'x');
-    }
-    disc(p, c, c, 4.4, 'y');
-    ring(p, c, c, 3.2, 4.4, 'z', -Math.PI, -Math.PI / 2);
-    ring(p, c, c, 3.4, 4.4, 'x', 0, Math.PI / 2);
-    p.set(5, 5, 'w');
-    return out(p);
-  },
+  sun: () => out(centred([
+    '......zy......',
+    '..x...zy...x..',
+    '...x......x...',
+    '.....zzzy.....',
+    '....zwzyyy....',
+    '...zzzyyyyx...',
+    'zz.zyyyyyyx.yy',
+    'yy.yyyyyyyx.xx',
+    '...yyyyyyxx...',
+    '....yyyyxx....',
+    '.....xxxx.....',
+    '...x......x...',
+    '..x...yx...x..',
+    '......yx......',
+  ])),
   pause() {
     const p = P();
-    for (const x of [4, 9]) { p.rect(x, 3, 3, 10, 'v'); p.rect(x, 3, 1, 10, 'w'); p.rect(x + 2, 3, 1, 10, 'u'); p.rect(x, 12, 3, 1, 'u'); }
+    for (const x of [3, 9]) { p.rect(x, 3, 4, 10, 'v'); p.rect(x, 3, 1, 10, 'w'); p.rect(x + 3, 3, 1, 10, 'u'); p.rect(x, 12, 4, 1, 'u'); p.set(x, 3, '.').set(x + 3, 12, '.'); }
     return out(p);
   },
   play() {
@@ -292,17 +292,18 @@ const ICONS = {
     return out(p);
   },
   horn() {
-    const p = P();
-    layer(p, (l) => {
-      for (let t = 0; t <= 1; t += 0.02) {
-        const x = (1 - t) ** 2 * 2.5 + 2 * (1 - t) * t * 3 + t * t * 12.5, y = (1 - t) ** 2 * 12.5 + 2 * (1 - t) * t * 3 + t * t * 6;
-        disc(l, x, y, 0.8 + t * 2.6, 'i');
-      }
-    }, ['h', 'i', 'w']);
-    for (const [x, y] of [[3, 7], [4, 7], [2, 7]]) p.set(x, y, 'y');
-    for (const [x, y] of [[8, 3], [8, 4], [8, 5], [8, 6]]) p.set(x, y, 'y');
-    ring(p, 12.5, 6, 2.2, 3.4, 'x');
-    disc(p, 12.5, 6, 2.2, 'f');
+    const p = P(), pt = (t) => [(1 - t) ** 2 * 2 + 2 * (1 - t) * t * 4 + t * t * 11.5, (1 - t) ** 2 * 13 + 2 * (1 - t) * t * 4 + t * t * 6.5];
+    const l = P();
+    for (let t = 0; t <= 1.0001; t += 0.01) {
+      const [x, y] = pt(t), band = (t > 0.3 && t < 0.36) || (t > 0.62 && t < 0.68);
+      disc(l, x, y, 0.9 + t * 2.7, band ? 'y' : 'i');
+    }
+    // shade the ivory body (bands keep their gold), then cut the bell mouth
+    const sh = l.clone().replace('y', 'i').shade(['h', 'i', 'w']);
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) if (l.d[y][x] === 'i') l.d[y][x] = sh.d[y][x]; else if (l.d[y][x] === 'y' && sh.d[y][x] === 'h') l.d[y][x] = 'x';
+    p.stamp(l);
+    p.ellipse(12.6, 6.5, 1.3, 2.9, 'y'); p.ellipse(12.9, 6.5, 0.7, 2.0, 'f');
+    p.set(2, 13, 'g').set(1, 14, 'g');
     return out(p);
   },
   pin() {
@@ -312,14 +313,19 @@ const ICONS = {
     p.set(6, 3, 'o');
     return out(p);
   },
-  undo() {
-    const p = P();
-    layer(p, (l) => {
-      ring(l, 9, 9, 2.6, 4.8, 'v', -Math.PI / 2, Math.PI * 0.75);
-      poly(l, [[2, 6], [7.6, 1.6], [7.6, 10.4]], 'v');
-    }, ['u', 'v', 'w']);
-    return out(p);
-  },
+  undo: () => out(centred([
+    '...w..........',
+    '..wv..........',
+    '.wvvvvvvvvv...',
+    'wvvvvvvvvvvvv.',
+    '.uvvv.....vvvv',
+    '..uv.......vvu',
+    '...u.......vvu',
+    '...........vvu',
+    '..........vvuu',
+    '....vvvvvvvuu.',
+    '....uuuuuuuu..',
+  ])),
   skull: () => out(centred(['..wwwwwww..', '.wwwwwwwwv.', 'wwwvvvvwwvv', 'wwkkwwwkkvv', 'wwkkwvwkkvu', 'wwwwwkvwwvu', '.vwwvkvwvu.', '..vwwwwvu..', '..w.w.v.u..', '..vwvwvuu..'])),
   shield() {
     const p = P();
@@ -406,7 +412,7 @@ const BOONS = {
   thick() {
     const p = P();
     layer(p, (l) => poly(l, [[2, 3], [6, 1.5], [10, 1.5], [14, 3], [13, 11], [8, 14.5], [3, 11]], 'u'), RAMPS.steel);
-    put(p, ['.RR.RR.', 'RoRRRRr', 'RRRRRRr', '.RRRRr.', '..RRr..', '...r...'], 4.5, 5);
+    put(p, ['.RR.RR.', 'RoRRRRr', 'RRRRRRr', '.RRRRr.', '..RRr..', '...r...'], 5, 5);
     p.set(4, 3, 'w');
     return out(p);
   },
@@ -419,25 +425,32 @@ const BOONS = {
   },
   leech() {
     const p = P();
-    layer(p, (l) => { poly(l, [[8, 2], [12, 9], [4, 9]], 'R'); disc(l, 8, 10, 4, 'R'); }, RAMPS.red);
-    p.set(6, 7, 'w').set(6, 8, 'o');
-    put(p, ['w...w', 'w...w', '.....'], 5.5, 1);
-    p.set(5, 1, 'w').set(11, 1, 'w').set(5, 2, 'v').set(11, 2, 'v');
-    return out(p);
+    layer(p, (l) => { poly(l, [[8, 4], [12, 10.5], [4, 10.5]], 'R'); disc(l, 8, 11, 3.8, 'R'); }, RAMPS.red);
+    p.set(6, 9, 'w').set(6, 10, 'o');
+    const f = P(); put(f, ['wwv...wwv', '.wv....wv', '.v.....v.'], 2, 1); f.outline();
+    return out(p).stamp(f);
   },
   horn() {
     const p = ICONS.horn();
-    for (const [x, y] of [[14, 9], [14, 10], [13, 12]]) p.set(x, y, 'z');
-    return p;
+    const l = P(); for (const [x, y] of [[14, 10], [14, 11], [12, 12], [13, 13]]) l.set(x, y, 'z');
+    return p.stamp(l.outline()).stamp(l);
   },
   ally() {
-    const p = P();
-    const helm = (ox) => layer(p, (l) => { disc(l, ox + 3.5, 7, 3.6, 'u'); l.rect(ox, 7, 8, 4, 'u'); }, RAMPS.steel);
-    helm(1); helm(7);
-    p.rect(2, 9, 5, 1, 'k'); p.rect(8, 9, 5, 1, 'k');
-    p.set(4, 3, 'R').set(10, 3, 'R');
-    put(p, ['.d.', 'ddd', '.d.'], 12, 11);
-    return out(p);
+    const p = out(centred([
+      '.....Ro......',
+      '....RRRo.....',
+      '...vvvvvuu...',
+      '..vvuuuuuut..',
+      '.vuuuuuuuuut.',
+      '.vukkkkkkkkt.',
+      '.vuuukuukuut.',
+      '.uuuuuuuuutt.',
+      '..ttttttttt..',
+      '.............',
+      '.............',
+    ]));
+    const plus = P(); put(plus, ['.d.', 'ddc', '.c.'], 12, 11); plus.outline();
+    return p.stamp(plus);
   },
   cooldown() {
     const p = P();
@@ -450,8 +463,8 @@ const BOONS = {
   },
   twin() {
     const p = P();
-    const bolt = (ox, oy) => put(p, ['..zy', '.zy.', 'zyyy', '..y.', '.yx.', '.x..'], ox, oy);
-    bolt(1, 2); bolt(8, 7);
+    const bolt = ['...zzy', '..zzy.', '.zzy..', 'zzzzyy', '..yyx.', '.yyx..', '.yx...', 'yx....'];
+    put(p, bolt, 1, 1); put(p, bolt, 8, 6);
     return out(p);
   },
   mason() {
@@ -463,9 +476,10 @@ const BOONS = {
   },
   boulder() {
     const p = P();
-    layer(p, (l) => poly(l, [[2, 9], [3.5, 4], [8, 1.5], [12.5, 3], [14.5, 8], [13, 13.5], [4, 14]], 't'), RAMPS.stone);
-    p.rect(2, 8, 13, 2, 'y'); p.rect(2, 8, 13, 1, 'z'); p.rect(2, 9, 13, 1, 'x');
-    p.set(5, 4, 'v').set(6, 3, 'v'); p.set(11, 12, 'c').set(12, 12, 'b'); p.set(9, 5, 's').set(10, 6, 's');
+    layer(p, (l) => poly(l, [[1.5, 10], [3, 4.5], [7.5, 1.5], [12.5, 2.5], [14.5, 7.5], [13.5, 13.5], [3.5, 14]], 't'), RAMPS.stone);
+    for (const [x, y] of [[8, 4], [8, 5], [9, 6], [9, 7], [10, 8], [9, 9]]) p.set(x, y, 's');
+    p.set(5, 4, 'v').set(6, 3, 'v').set(4, 5, 'v'); p.speckle('t', 'u', 0.08, 4);
+    for (const [x, y, c] of [[5, 2, 'c'], [6, 2, 'd'], [7, 1, 'c'], [4, 3, 'b']]) p.set(x, y, c);
     return out(p);
   },
   hawk() {
@@ -508,7 +522,7 @@ const BOONS = {
   },
   thorns() {
     const p = P();
-    brick(p, 1, 8, 7, 3); brick(p, 8, 8, 7, 3); brick(p, 1, 11, 4, 3); brick(p, 5, 11, 7, 3); brick(p, 12, 11, 3, 3);
+    brick(p, 1, 8, 7, 3); brick(p, 8, 8, 7, 3); brick(p, 1, 11, 4, 3); brick(p, 5, 11, 7, 3);
     for (let x = 1; x <= 14; x++) p.set(x, 6 + (x % 4 === 0 ? -1 : x % 4 === 2 ? 1 : 0), 'b');
     for (const x of [2, 6, 10, 14]) p.set(x, 4, 'c');
     for (const x of [4, 8, 12]) p.set(x, 8, 'b');
@@ -593,7 +607,7 @@ const BOONS = {
 // 3px ember extrusion and a flame rising out of the O whose counter glows.
 const LOGO_SKEL = {
   E: ['#####', '#....', '#....', '####.', '#....', '#....', '#####'],
-  M: ['#...#', '##.##', '#####', '#.#.#', '#...#', '#...#', '#...#'],
+  M: ['#...#', '##.##', '#.#.#', '#.#.#', '#...#', '#...#', '#...#'],
   B: ['####.', '#...#', '#...#', '####.', '#...#', '#...#', '####.'],
   R: ['####.', '#...#', '#...#', '####.', '#.#..', '#..#.', '#...#'],
   H: ['#...#', '#...#', '#...#', '#####', '#...#', '#...#', '#...#'],
@@ -602,56 +616,70 @@ const LOGO_SKEL = {
   D: ['####.', '#...#', '#...#', '#...#', '#...#', '#...#', '####.'],
 };
 function logo() {
-  const W = 172, H = 72, S = 3, word = 'EMBERHOLD', gap = 3, lw = 5 * S, lh = 7 * S;
+  const W = 204, H = 80, S = 4, word = 'EMBERHOLD', gap = 2, lw = 5 * S, lh = 7 * S;
   const ox = Math.floor((W - (word.length * lw + (word.length - 1) * gap)) / 2), base = H - 6 - lh;
-  const ink = P(W, H);
-  const letterX = [];
+  const ink = P(W, H), letterX = [];
   [...word].forEach((ch, i) => {
-    const x0 = ox + i * (lw + gap); letterX.push(x0);
-    const g = LOGO_SKEL[ch];
-    for (let r = 0; r < 7; r++) for (let c = 0; c < 5; c++) if (g[r][c] === '#') ink.rect(x0 + c * S, base + r * S, S, S, 'y');
-    // chamfer convex corners of the scaled skeleton
+    const x0 = ox + i * (lw + gap), g = LOGO_SKEL[ch], on = (r, c) => !!(g[r] && g[r][c] === '#');
+    letterX.push(x0);
     for (let r = 0; r < 7; r++) for (let c = 0; c < 5; c++) {
-      if (g[r][c] !== '#') continue;
-      const e = (rr, cc) => (g[rr] && g[rr][cc] === '#');
       const X = x0 + c * S, Y = base + r * S;
-      if (!e(r - 1, c) && !e(r, c - 1)) ink.set(X, Y, '.');
-      if (!e(r - 1, c) && !e(r, c + 1)) ink.set(X + S - 1, Y, '.');
-      if (!e(r + 1, c) && !e(r, c - 1)) ink.set(X, Y + S - 1, '.');
-      if (!e(r + 1, c) && !e(r, c + 1)) ink.set(X + S - 1, Y + S - 1, '.');
+      if (on(r, c)) {
+        ink.rect(X, Y, S, S, 'y');
+        // round only the letter's outer corners (both neighbours empty AND the diagonal empty)
+        if (!on(r - 1, c) && !on(r, c - 1) && !on(r - 1, c - 1)) ink.set(X, Y, '.');
+        if (!on(r - 1, c) && !on(r, c + 1) && !on(r - 1, c + 1)) ink.set(X + S - 1, Y, '.');
+        if (!on(r + 1, c) && !on(r, c - 1) && !on(r + 1, c - 1)) ink.set(X, Y + S - 1, '.');
+        if (!on(r + 1, c) && !on(r, c + 1) && !on(r + 1, c + 1)) ink.set(X + S - 1, Y + S - 1, '.');
+        continue;
+      }
+      // smooth diagonal-only joints (M, R leg, O shoulders) with a filled half-cell
+      for (let j = 0; j < S; j++) for (let i2 = 0; i2 < S; i2++) {
+        const fill = (on(r, c - 1) && on(r + 1, c) && !on(r + 1, c - 1) && i2 + (S - 1 - j) < S - 1 ? 0 : 0) ||
+          (on(r - 1, c) && on(r, c + 1) && i2 + (S - 1 - j) >= S + 1) || (on(r - 1, c) && on(r, c - 1) && i2 + j < S - 2) ||
+          (on(r + 1, c) && on(r, c + 1) && i2 + j > S) || (on(r + 1, c) && on(r, c - 1) && (S - 1 - i2) + j > S);
+        if (fill) ink.set(X + i2, Y + j, 'y');
+      }
     }
   });
-  // vertical fire gradient bands across the word, lit top edge
+  // fire gradient bands, lit top/left edges, shaded right/bottom edges
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     if (ink.d[y][x] === '.') continue;
-    const t = (y - base) / lh;
-    ink.d[y][x] = t < 0.3 ? 'z' : t < 0.62 ? 'y' : 'x';
-    if (ink.get(x, y - 1) === '.') ink.d[y][x] = t < 0.3 ? 'w' : 'z';
-    else if (ink.get(x - 1, y) === '.' && t < 0.6) ink.d[y][x] = 'z';
-    else if (ink.get(x + 1, y) === '.' && t > 0.3) ink.d[y][x] = t < 0.62 ? 'x' : 'R';
+    const t = (y - base) / lh, band = t < 0.34 ? 'z' : t < 0.67 ? 'y' : 'x';
+    let c = band;
+    if (ink.get(x, y - 1) === '.') c = t < 0.34 ? 'w' : 'z';
+    else if (ink.get(x - 1, y) === '.') c = t < 0.67 ? 'z' : 'y';
+    else if (ink.get(x, y + 1) === '.' || ink.get(x + 1, y) === '.') c = t < 0.34 ? 'y' : t < 0.67 ? 'x' : 'R';
+    ink.d[y][x] = c;
   }
-  // extrusion: 3px down, dark ember ramp
   const p = P(W, H);
-  for (let d = 3; d >= 1; d--) for (let y = 0; y < H; y++) for (let x = 0; x < W; x++)
-    if (ink.d[y][x] !== '.') p.set(x, y + d, d === 3 ? 'm' : d === 2 ? 'r' : 'r');
+  // flame behind the O (drawn first, letters on top): three curved tongues, each a teardrop in 3 fire tones
+  const oi = word.indexOf('O'), Ox = letterX[oi], fx = Ox + lw / 2, fb = base + S + 6;
+  const tongue = (cx, h, hw, lean, c) => {
+    for (let r = 0; r <= h; r++) {
+      const t = r / h, half = hw * Math.pow(1 - t, 0.9) * Math.min(1, (t + 0.12) / 0.3), off = lean * t * t;
+      for (let x = Math.ceil(cx + off - half - 0.5); x <= Math.floor(cx + off + half - 0.5); x++) p.set(x, fb - r, c);
+    }
+  };
+  for (const [c, k] of [['x', 1], ['y', 0.74], ['z', 0.46]]) {
+    tongue(fx - 7, 22 * k + 4, 6 * k + 0.6, -5 * k, c);
+    tongue(fx + 8, 18 * k + 4, 5.5 * k + 0.6, 5 * k, c);
+    tongue(fx, 40 * k + 4, 10 * k + 0.8, 7 * k, c);
+  }
+  p.set(Math.round(fx + 1), fb - 12, 'w').set(Math.round(fx + 2), fb - 14, 'w').set(Math.round(fx + 1), fb - 13, 'w');
+  // extrusion: 3px down, dark ember ramp, then the letters
+  for (let d = 3; d >= 1; d--) for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (ink.d[y][x] !== '.') p.set(x, y + d, d === 3 ? 'm' : 'r');
   p.stamp(ink);
-  // the O's counter glows like the hearth
-  const oi = word.indexOf('O'), Ox = letterX[oi];
+  // the O's counter is a hearth: dark interior, glowing coals at the bottom
   p.rect(Ox + S, base + S, 3 * S, 5 * S, 'r');
-  p.rect(Ox + S, base + S + 2, 3 * S, 5 * S - 2, 'x');
-  p.ellipse(Ox + lw / 2, base + lh - S - 3, 3.2, 3.2, 'y');
-  p.ellipse(Ox + lw / 2, base + lh - S - 2, 1.6, 1.8, 'z');
-  // flame rising out of the O (hand-shaped licks)
-  const fx = Ox + lw / 2, fb = base + S + 2;
-  const fl = P(W, H);
-  poly(fl, [[fx - 8, fb], [fx - 9, fb - 9], [fx - 5, fb - 6], [fx - 4, fb - 18], [fx + 1, fb - 10], [fx + 3, fb - 26], [fx + 7, fb - 12], [fx + 9, fb - 16], [fx + 9, fb - 5], [fx + 8, fb]], 'x');
-  poly(fl, [[fx - 5, fb], [fx - 4, fb - 10], [fx, fb - 5], [fx + 3, fb - 18], [fx + 6, fb - 6], [fx + 6, fb]], 'y');
-  poly(fl, [[fx - 2, fb], [fx + 0, fb - 6], [fx + 2.5, fb - 10], [fx + 4, fb - 3], [fx + 3, fb]], 'z');
-  fl.set(Math.round(fx + 1), fb - 4, 'w').set(Math.round(fx + 2), fb - 6, 'w');
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (fl.d[y][x] !== '.' && (p.d[y][x] === '.' || y < fb)) p.d[y][x] = fl.d[y][x];
+  p.rect(Ox + S, base + S, 3 * S, 2, 'm'); p.rect(Ox + S, base + S, 1, 5 * S, 'm');
+  p.ellipse(Ox + lw / 2, base + lh - S - 3, 5.5, 5, 'x');
+  p.ellipse(Ox + lw / 2, base + lh - S - 2, 3.5, 3, 'y');
+  p.ellipse(Ox + lw / 2, base + lh - S - 1.5, 1.6, 1.5, 'z');
+  p.set(Ox + S + 2, base + lh - S - 1, 'y').set(Ox + 4 * S - 3, base + lh - S - 2, 'y');
   p.outline();
   // floating embers outside the outline (same trick as the brazier anchor)
-  for (const [dx, dy, c] of [[-13, -20, 'y'], [14, -24, 'x'], [-9, -29, 'x'], [12, -32, 'y'], [-16, -12, 'x']]) p.set(Math.round(fx + dx), fb + dy, c);
+  for (const [dx, dy, c] of [[-17, -26, 'y'], [17, -30, 'x'], [-10, -38, 'x'], [14, -42, 'y'], [-20, -16, 'x'], [4, -49, 'y']]) p.set(Math.round(fx + dx), fb + dy, c);
   return p;
 }
 
@@ -675,7 +703,7 @@ export default function build() {
   ui('btn_disabled', button('disabled'), { slice: [6, 6, 6, 8] });
   ui('tab_on', tab(true), { slice: [6, 6, 6, 4] });
   ui('tab_off', tab(false), { slice: [6, 6, 6, 4] });
-  for (const r of ['common', 'rare', 'legendary']) ui(`card_${r}`, card(r), { slice: [10, 10, 10, 10] });
+  for (const r of ['common', 'rare', 'legendary']) ui(`card_${r}`, card(r), { slice: [12, 12, 12, 12] });
   ui('bar_frame', barFrame(), { slice: [3, 3, 3, 3] });
   for (const [n, ramp] of [['red', RAMPS.red], ['green', RAMPS.grass], ['blue', RAMPS.blue], ['gold', RAMPS.fire]]) ui(`bar_fill_${n}`, barFill(ramp), { slice: [2, 1, 1, 1] });
   ui('joy_base', joyBase(), { ax: 24, ay: 24 });
