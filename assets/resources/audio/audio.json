@@ -311,6 +311,146 @@
       "volume": 0.75,
       "loop": false
     },
+    "bell": {
+      "file": "bell.wav",
+      "path": "audio/bell",
+      "bytes": 63990,
+      "category": "sfx",
+      "duration": 1.45,
+      "samples": 31973,
+      "volume": 0.6,
+      "loop": false
+    },
+    "collect_away": {
+      "file": "collect_away.wav",
+      "path": "audio/collect_away",
+      "bytes": 31796,
+      "category": "sfx",
+      "duration": 0.72,
+      "samples": 15876,
+      "volume": 0.55,
+      "loop": false
+    },
+    "villager_work_1": {
+      "file": "villager_work_1.wav",
+      "path": "audio/villager_work_1",
+      "bytes": 4454,
+      "category": "sfx",
+      "duration": 0.1,
+      "samples": 2205,
+      "volume": 0.32,
+      "loop": false
+    },
+    "villager_work_2": {
+      "file": "villager_work_2.wav",
+      "path": "audio/villager_work_2",
+      "bytes": 9746,
+      "category": "sfx",
+      "duration": 0.22,
+      "samples": 4851,
+      "volume": 0.3,
+      "loop": false
+    },
+    "villager_work_3": {
+      "file": "villager_work_3.wav",
+      "path": "audio/villager_work_3",
+      "bytes": 8864,
+      "category": "sfx",
+      "duration": 0.2,
+      "samples": 4410,
+      "volume": 0.3,
+      "loop": false
+    },
+    "storage_full": {
+      "file": "storage_full.wav",
+      "path": "audio/storage_full",
+      "bytes": 19448,
+      "category": "sfx",
+      "duration": 0.44,
+      "samples": 9702,
+      "volume": 0.5,
+      "loop": false
+    },
+    "hearth_tier": {
+      "file": "hearth_tier.wav",
+      "path": "audio/hearth_tier",
+      "bytes": 57374,
+      "category": "sfx",
+      "duration": 1.3,
+      "samples": 28665,
+      "volume": 0.7,
+      "loop": false
+    },
+    "region_sealed": {
+      "file": "region_sealed.wav",
+      "path": "audio/region_sealed",
+      "bytes": 66194,
+      "category": "sfx",
+      "duration": 1.5,
+      "samples": 33075,
+      "volume": 0.7,
+      "loop": false
+    },
+    "extract_ok": {
+      "file": "extract_ok.wav",
+      "path": "audio/extract_ok",
+      "bytes": 30914,
+      "category": "sfx",
+      "duration": 0.7,
+      "samples": 15435,
+      "volume": 0.6,
+      "loop": false
+    },
+    "extract_fail": {
+      "file": "extract_fail.wav",
+      "path": "audio/extract_fail",
+      "bytes": 53846,
+      "category": "sfx",
+      "duration": 1.22,
+      "samples": 26901,
+      "volume": 0.6,
+      "loop": false
+    },
+    "timer_tick": {
+      "file": "timer_tick.wav",
+      "path": "audio/timer_tick",
+      "bytes": 1808,
+      "category": "sfx",
+      "duration": 0.04,
+      "samples": 882,
+      "volume": 0.45,
+      "loop": false
+    },
+    "blood_moon": {
+      "file": "blood_moon.wav",
+      "path": "audio/blood_moon",
+      "bytes": 66194,
+      "category": "sfx",
+      "duration": 1.5,
+      "samples": 33075,
+      "volume": 0.7,
+      "loop": false
+    },
+    "tower_frozen": {
+      "file": "tower_frozen.wav",
+      "path": "audio/tower_frozen",
+      "bytes": 18126,
+      "category": "sfx",
+      "duration": 0.41,
+      "samples": 9041,
+      "volume": 0.55,
+      "loop": false
+    },
+    "burrow": {
+      "file": "burrow.wav",
+      "path": "audio/burrow",
+      "bytes": 23858,
+      "category": "sfx",
+      "duration": 0.54,
+      "samples": 11907,
+      "volume": 0.6,
+      "loop": false
+    },
     "music_day": {
       "file": "music_day.wav",
       "path": "audio/music_day",
@@ -355,7 +495,37 @@
       "bpm": 150,
       "beatsPerBar": 4,
       "bars": 10
+    },
+    "music_expedition": {
+      "file": "music_expedition.wav",
+      "path": "audio/music_expedition",
+      "bytes": 705644,
+      "category": "music",
+      "duration": 16,
+      "samples": 352800,
+      "volume": 0.55,
+      "loop": true,
+      "loopStart": 0,
+      "loopEnd": 352800,
+      "bpm": 150,
+      "beatsPerBar": 4,
+      "bars": 10
+    },
+    "music_day2": {
+      "file": "music_day2.wav",
+      "path": "audio/music_day2",
+      "bytes": 705644,
+      "category": "music",
+      "duration": 16,
+      "samples": 352800,
+      "volume": 0.55,
+      "loop": true,
+      "loopStart": 0,
+      "loopEnd": 352800,
+      "bpm": 120,
+      "beatsPerBar": 4,
+      "bars": 8
     }
   },
-  "totalBytes": 2996286
+  "totalBytes": 4864186
 }

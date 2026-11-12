@@ -1,17 +1,20 @@
-// SPEC §11.1 boon offers (weighted by rarity) and application. Effects are read where they apply
-// (Combat/Economy/Light/Squad/Towers/Enemies/Phases) via boonStacks().
-import type { Boon } from '../api';
+// SPEC v2 §11.7 dawn gifts (1 of 3, 4 at Fierce+; blessing / resource pack / rare 10%, guaranteed at Nightmare)
+// and blessings (24 boons lasting 3 nights, 3 slots / 4 from Hearth tier 5, duplicates stack + refresh, full → drop one).
+// Effects are read where they apply (Combat/Economy/Light/Squad/Towers/Enemies/Phases) via boonStacks().
+import type { BoonDef as ApiBoonDef, DawnGift, HeroId, ResKey } from '../api';
 import { BALANCE } from '../data/balance';
 import { BOONS, BOON_BY_ID, type BoonDef, type BoonId } from '../data/boons';
+import { HERO_IDS } from '../data/heroes';
 import { t } from '../data/i18n';
-import { TALENT_BY_ID } from '../data/talents';
-import { heroMaxHp } from './Combat';
 import { buildingMaxHp } from './Economy';
-import { skillCdMax } from './Squad';
-import { type World, type HeroX, type BuildingX, emit, boonStacks } from './World';
+import { grantShards, syncSquad } from './heroBridge';
+import { Rng, mixSeed } from './Rng';
+import { bestShardHero, makeGear } from './Daily';
+import { type World, type BuildingX, type HeroX, boonStacks, gainRes, isWall } from './World';
 
-export function makeBoon(w: World, d: BoonDef): Boon {
-  return { id: d.id, name: t(`boon.${d.id}.name`), desc: t(`boon.${d.id}.desc`), group: d.group, rarity: d.rarity, stacks: boonStacks(w, d.id), maxStacks: d.maxStacks };
+export function describeBoon(id: string): ApiBoonDef {
+  const d = BOON_BY_ID[id as BoonId];
+  return { id, name: t(`boon.${id}.name`), desc: t(`boon.${id}.desc`), group: d.group, rarity: d.rarity, maxStacks: d.maxStacks };
 }
 
 function available(w: World, d: BoonDef): boolean {
@@ -20,56 +23,136 @@ function available(w: World, d: BoonDef): boolean {
   return true;
 }
 
-export function rollBoons(w: World, count: number, commonOnly: boolean): Boon[] {
-  const rw = w.s.night >= BALANCE.rarity.lateFromNight ? BALANCE.rarity.late : BALANCE.rarity.early;
+export function blessingSlots(w: World): number { return w.s.hearthTier >= 5 ? BALANCE.blessing.slotsAtTier5 : BALANCE.blessing.slots; }
+
+/** Roll `count` distinct blessings by rarity weights (70/25/5, TR ≥ 12: 55/35/10). */
+export function rollBoons(w: World, count: number, rng: Rng, exclude: string[] = []): BoonDef[] {
+  const B = BALANCE.blessing;
+  const rw = w.s.tr >= B.lateFromTr ? B.rarityLate : B.rarity;
   const out: BoonDef[] = [];
   for (let k = 0; k < count; k++) {
-    const pool = BOONS.filter((d) => available(w, d) && !out.includes(d) && (!commonOnly || d.rarity === 'common'));
+    const pool = BOONS.filter((d) => available(w, d) && !out.includes(d) && !exclude.includes(d.id));
     if (!pool.length) break;
-    let rar: BoonDef['rarity'] = 'common';
-    if (!commonOnly) { const r = w.rng.weighted(rw); rar = r === 0 ? 'common' : r === 1 ? 'rare' : 'legendary'; }
+    const r = rng.weighted(rw);
+    const rar: BoonDef['rarity'] = r === 0 ? 'common' : r === 1 ? 'rare' : 'legendary';
     let sub = pool.filter((d) => d.rarity === rar);
     if (!sub.length) sub = pool;
-    out.push(sub[w.rng.int(0, sub.length - 1)]);
+    out.push(sub[rng.int(0, sub.length - 1)]);
   }
-  return out.map((d) => makeBoon(w, d));
+  return out;
 }
 
-export function offerBoons(w: World, source: 'dawn' | 'chest'): void {
-  const n = source === 'dawn' ? 3 : 2 + TALENT_BY_ID.chestChoice.perLevel * (w.meta.talents.chestChoice ?? 0);
-  w.s.boonOffer = rollBoons(w, n, source === 'chest');
-  w.s.boonSource = source;
-  if (!w.s.boonOffer.length) { w.s.boonOffer = null; w.s.boonSource = null; return; }
-  emit(w, { t: 'boonOffer', source });
+function resourceGift(w: World, rng: Rng): DawnGift {
+  const tr = w.s.tr;
+  const opts: Array<[ResKey, number]> = [['wood', 60 + 15 * tr], ['stone', 45 + 12 * tr], ['iron', 10 + 3 * tr], ['essence', 20 + 5 * tr]];
+  const [res, amount] = opts[rng.int(0, opts.length - 1)];
+  return { kind: 'resources', res, amount: Math.round(amount) };
 }
 
-export function applyBoon(w: World, id: BoonId): void {
+function rareGift(w: World, rng: Rng): DawnGift {
+  const r = rng.int(0, 2);
+  if (r === 0) {
+    const squad = (w.s.heroes as HeroX[]).map((h) => h.id);
+    const hero: HeroId = squad.length ? squad[rng.int(0, squad.length - 1)] : 'knight';
+    return { kind: 'rare', what: 'shards', hero, amount: 5 };
+  }
+  if (r === 1) return { kind: 'rare', what: 'gear', amount: 1 };
+  return { kind: 'rare', what: 'lore', amount: 2 };
+}
+
+/** Roll tonight's dawn gifts into state.gifts. */
+export function offerGifts(w: World, salt = 0): void {
+  const s = w.s;
+  const rng = new Rng(mixSeed(s.seed, 41000 + s.night * 17 + salt));
+  const n = 3 + (s.beacon === 'fierce' || s.beacon === 'nightmare' ? 1 : 0);
+  const gifts: DawnGift[] = [];
+  const used: string[] = [];
+  let rareForced = s.beacon === 'nightmare' && !s.siege;
+  for (let k = 0; k < n; k++) {
+    const roll = rng.next();
+    if (rareForced || roll < BALANCE.blessing.rareGiftChance) { gifts.push(rareGift(w, rng)); rareForced = false; continue; }
+    if (roll < 0.62) {
+      const b = rollBoons(w, 1, rng, used)[0];
+      if (b) { used.push(b.id); gifts.push({ kind: 'blessing', boon: b.id, rarity: b.rarity }); continue; }
+    }
+    gifts.push(resourceGift(w, rng));
+  }
+  s.gifts = gifts;
+  s.giftSource = 'dawn';
+}
+
+/** Apply a chosen gift. Returns false when a blessing waits for a slot (state.blessings full → dropBlessing). */
+export function applyGift(w: World, g: DawnGift): boolean {
+  const s = w.s;
+  if (g.kind === 'resources') { gainRes(w, g.res, g.amount); return true; }
+  if (g.kind === 'rare') {
+    const rng = new Rng(mixSeed(s.seed, 42000 + s.night));
+    if (g.what === 'shards') grantShards(s, g.hero ?? bestShardHero(w), g.amount);
+    else if (g.what === 'gear') makeGear(w, 'rare', rng);
+    else gainRes(w, 'lore', g.amount);
+    return true;
+  }
+  return applyBoon(w, g.boon as BoonId);
+}
+
+export function applyBoon(w: World, id: BoonId): boolean {
+  const s = w.s;
   const d = BOON_BY_ID[id];
-  let b = w.s.boons.find((x) => x.id === id);
-  if (!b) { b = makeBoon(w, d); b.stacks = 0; w.s.boons.push(b); }
-  if (b.stacks >= d.maxStacks) return;
-  b.stacks++;
-  // immediate effects
-  switch (id) {
-    case 'thick':
-      for (const h of w.s.heroes as HeroX[]) { const before = h.maxHp; h.maxHp = heroMaxHp(w, h); if (!h.dead) h.hp += h.maxHp - before; }
-      break;
-    case 'ally': w.s.squadMax = Math.min(BALANCE.squad.maxWithBoon, w.s.squadMax + 1); break;
-    case 'cooldown': for (const h of w.s.heroes as HeroX[]) { h.skillCdMax = skillCdMax(w, h.id); h.skillCd = Math.min(h.skillCd, h.skillCdMax); } break;
-    case 'boulder':
-      for (const x of w.s.buildings as BuildingX[]) if (x.id === 'wall_wood' || x.id === 'wall_stone') { const before = x.maxHp; x.maxHp = buildingMaxHp(w, x.id, x.level); x.hp += x.maxHp - before; }
-      w.r.fieldDirty = true;
-      break;
-    case 'spikes': for (const x of w.s.buildings as BuildingX[]) if (x.id === 'trap_spikes') x.charges += 4; w.r.fieldDirty = true; break;
-    case 'bigfire': case 'farlight': w.lightDirty = true; break;
-    case 'embers': for (const x of w.s.buildings as BuildingX[]) if (x.id === 'brazier') x.fueled = true; w.lightDirty = true; break;
+  let b = s.blessings.find((x) => x.id === id);
+  if (b) {
+    b.stacks = Math.min(d.maxStacks, b.stacks + 1);
+    b.nightsLeft = BALANCE.blessing.nights;
+  } else {
+    if (s.blessings.length >= blessingSlots(w)) { w.r.pendingBlessing = id; return false; }
+    b = { id, stacks: 1, nightsLeft: BALANCE.blessing.nights };
+    s.blessings.push(b);
   }
-}
-
-export function pickBoon(w: World, index: number): boolean {
-  const offer = w.s.boonOffer;
-  if (!offer || index < 0 || index >= offer.length) return false;
-  applyBoon(w, offer[index].id as BoonId);
-  w.s.boonOffer = null;
+  blessingChanged(w, id);
   return true;
 }
+
+/** Re-derive state that depends on a blessing (on gain and on loss). */
+export function blessingChanged(w: World, id: string): void {
+  const s = w.s;
+  switch (id) {
+    case 'boulder':
+      for (const x of s.buildings as BuildingX[]) if (isWall(x.id) && !x.dead) { const before = x.maxHp; x.maxHp = buildingMaxHp(w, x.id, x.level, x); x.hp = Math.max(1, Math.min(x.maxHp, x.hp + (x.maxHp - before))); }
+      w.r.fieldDirty = true; break;
+    case 'spikes':
+      for (const x of s.buildings as BuildingX[]) if (x.id === 'trap_spikes' && !x.dead) x.charges = Math.max(0, x.charges + (boonStacks(w, 'spikes') > 0 ? 4 : -4));
+      w.r.fieldDirty = true; break;
+    case 'ally':
+      s.squadMax = squadMaxOf(w);
+      syncSquad(w); break;
+    case 'bigfire': case 'farlight': w.lightDirty = true; break;
+    case 'embers': for (const x of s.buildings as BuildingX[]) if (x.id === 'brazier') x.fueled = true; w.lightDirty = true; break;
+  }
+}
+
+export function dropBlessing(w: World, id: string): boolean {
+  const s = w.s;
+  const i = s.blessings.findIndex((b) => b.id === id);
+  if (i < 0) {
+    if (w.r.pendingBlessing === id) { w.r.pendingBlessing = null; return true; } // decline the new one
+    return false;
+  }
+  s.blessings.splice(i, 1);
+  blessingChanged(w, id);
+  if (w.r.pendingBlessing) { const p = w.r.pendingBlessing as BoonId; w.r.pendingBlessing = null; applyBoon(w, p); }
+  return true;
+}
+
+/** DAWN: blessings age one night; expired ones are removed. */
+export function ageBlessings(w: World): void {
+  const s = w.s;
+  for (const b of [...s.blessings]) {
+    b.nightsLeft--;
+    if (b.nightsLeft <= 0) { s.blessings.splice(s.blessings.indexOf(b), 1); blessingChanged(w, b.id); }
+  }
+}
+
+export function squadMaxOf(w: World): number {
+  return BALANCE.hero.squadMax + (w.s.unlocked.includes('squad5') ? 1 : 0) + (boonStacks(w, 'ally') > 0 ? 1 : 0);
+}
+
+export { HERO_IDS };

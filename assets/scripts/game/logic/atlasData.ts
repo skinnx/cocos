@@ -23,10 +23,10 @@ export function defaultAnchor(name: string, w: number, h: number): [number, numb
 
 /** Default 9-slice insets for panel / button / card / bar sprites when the json does not provide any. */
 export function defaultSlice(name: string, w: number, h: number): [number, number, number, number] | null {
-  if (!/^ui_(panel|btn|tab|card|bar|minimap_frame)/.test(name)) return null;
+  if (!/^ui_(panel|btn|tab|card|bar|minimap_frame|bottombar|goal_strip|island_card|timer_frame|progress_|map_frame|away_header|chronicle_bar|gear_frame|slot_)/.test(name)) return null;
   const ix = Math.max(1, Math.min(6, Math.floor((w - 1) / 2)));
   const iy = Math.max(1, Math.min(6, Math.floor((h - 1) / 2)));
-  if (name.startsWith('ui_bar')) return [Math.min(2, ix), Math.min(2, iy), Math.min(2, ix), Math.min(2, iy)];
+  if (name.startsWith('ui_bar_') || name.startsWith('ui_progress_')) return [Math.min(2, ix), Math.min(2, iy), Math.min(2, ix), Math.min(2, iy)];
   return [ix, iy, ix, iy];
 }
 

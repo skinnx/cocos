@@ -2,7 +2,7 @@
 import type { BuildingState } from '../api';
 import { BUILDINGS } from '../data/buildings';
 import { NODE_BLOCKS } from './MapGen';
-import { type World, type BuildingX, isTrap, inMap } from './World';
+import { type World, type BuildingX, isFloor, inMap } from './World';
 
 export function rebuildTerrain(w: World): void {
   const n = w.size;
@@ -10,20 +10,19 @@ export function rebuildTerrain(w: World): void {
   for (let i = 0; i < n * n; i++) if (w.s.map.biome[i] === 'water') w.terrain[i] = 2;
   w.s.nodes.forEach((nd, k) => {
     const i = nd.y * n + nd.x;
+    if (nd.hp <= 0 && nd.kind !== 'stump') return; // depleted rock/ore/special: gone until it regrows
     w.nodeAt[i] = k + 1;
     if (NODE_BLOCKS[nd.kind]) w.terrain[i] = 1;
   });
-  for (const p of w.s.pois) if (p.kind === 'cage' && p.active) w.poiAt[p.y * n + p.x] = p.uid;
+  for (const p of w.s.pois) if ((p.kind === 'cage' && p.active) || p.kind === 'heart') w.poiAt[p.y * n + p.x] = p.uid;
 }
 
 export function rebuildBuildings(w: World): void {
-  w.bldAt.fill(0); w.trapAt.fill(0); w.bmap.clear();
+  w.bldAt.fill(0); w.trapAt.fill(0); w.ruinAt.fill(0); w.bmap.clear();
   for (const b of w.s.buildings as BuildingX[]) {
     w.bmap.set(b.uid, b);
-    const trap = isTrap(b.id);
-    for (let y = b.y; y < b.y + b.h; y++) for (let x = b.x; x < b.x + b.w; x++) {
-      if (trap) w.trapAt[y * w.size + x] = b.uid; else w.bldAt[y * w.size + x] = b.uid;
-    }
+    const arr = b.ruined ? w.ruinAt : isFloor(b.id) ? w.trapAt : w.bldAt;
+    for (let y = b.y; y < b.y + b.h; y++) for (let x = b.x; x < b.x + b.w; x++) arr[y * w.size + x] = b.uid;
   }
 }
 
@@ -45,7 +44,8 @@ export function cellBlocks(w: World, cx: number, cy: number, hero: boolean): boo
   if (hardBlocked(w, cx, cy)) return true;
   const u = w.bldAt[cy * w.size + cx];
   if (!u) return false;
-  if (hero) { const b = w.bmap.get(u); if (b && b.id === 'gate') return false; }
+  const b = w.bmap.get(u);
+  if (b && b.id === 'gate' && (hero || b.open)) return false; // heroes pass gates; an open gate lets Gloom slip through
   return true;
 }
 

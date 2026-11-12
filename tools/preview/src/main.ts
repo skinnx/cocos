@@ -12,5 +12,5 @@ app.installInput();
 app.resize();
 requestAnimationFrame(app.frame);
 app.boot().then(() => {
-  if (/[?&]autostart=1/.test(location.search)) app.newRun();
+  if (/[?&]autostart=1/.test(location.search)) app.enterHold();
 }).catch((e) => app.reportError(e));

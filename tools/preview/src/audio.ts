@@ -7,6 +7,9 @@ const ALIAS: Record<string, string> = {
   poi: 'coin', pulse: 'boss_roar', ui_open: 'ui_click',
   skill_shieldBash: 'hero_hit_1', skill_arrowRain: 'arrow', skill_fireWall: 'explosion', skill_miniTurret: 'place',
   skill_sanctum: 'level_up', skill_shadowStep: 'hero_hit_2',
+  // v2
+  skill_packCall: 'rally_horn', skill_holdLine: 'upgrade', skill_flare: 'brazier_on', skill_powderKeg: 'explosion',
+  shoot_javelin: 'arrow', shoot_bomb: 'mortar_fire', shoot_boulder: 'mortar_fire', shoot_barrel: 'mortar_fire',
 };
 
 interface FileInfo { file: string; category: 'sfx' | 'music'; volume?: number; loop?: boolean }

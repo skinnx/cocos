@@ -8,4 +8,5 @@ export { classifyDrag, paintCells, paintPlan, footprintOrigin, ringPoints, dotte
 export type { LineMode, Cell } from '../../../assets/scripts/game/logic/gestures';
 export { basePixelScale, smoothFactor, lookAhead, clampCamera, edgeScroll, pinchStep, zoomSteps } from '../../../assets/scripts/game/logic/camera';
 export { heroSprite, enemySprite, buildingSprites, isFloorBuilding, nodeSprite, nodeShadow, poiSprite, projectileSprite, unitShadow, lerpPos, statusIcons, crackOverlay, isBoss, animFrame, ANIM_FPS } from '../../../assets/scripts/game/logic/sprites';
-export { layoutText, toAscii, fmtNum } from '../../../assets/scripts/game/logic/text';
+export { layoutText, toAscii } from '../../../assets/scripts/game/logic/text';
+export { abbrev as fmtNum, fmtCountdown, costParts, affordable, addCost, RES_ORDER } from '../../../assets/scripts/game/logic/format';

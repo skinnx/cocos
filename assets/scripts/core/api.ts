@@ -142,7 +142,7 @@ export interface BuildingState {
 export interface ProjectileState { uid: number; kind: ProjectileKind; x: number; y: number; px: number; py: number; z: number; angle: number }
 export interface ResourceNode { uid: number; kind: NodeKind; x: number; y: number; hp: number; maxHp: number; regrowNights: number; shakeT: number }
 export interface PoiState { uid: number; kind: PoiKind; x: number; y: number; hp: number; maxHp: number; active: boolean; region: number; cooldownNights: number; data?: Record<string, unknown> }
-export interface ZoneState { uid: number; kind: 'firewall' | 'sanctum' | 'flare' | 'thorns' | 'blizzard'; x: number; y: number; x2: number; y2: number; r: number; t: number; dur: number }
+export interface ZoneState { uid: number; kind: 'firewall' | 'sanctum' | 'flare' | 'thorns' | 'blizzard' | 'holdline' | 'barrel' | 'smoke'; x: number; y: number; x2: number; y2: number; r: number; t: number; dur: number }
 export interface OmenEntry { enemy: EnemyId; count: number; rift: number; elite: number }
 
 export interface BoonDef { id: string; name: string; desc: string; group: 'squad' | 'fort' | 'flame'; rarity: 'common' | 'rare' | 'legendary'; maxStacks: number }
@@ -202,6 +202,7 @@ export interface GameState {
   unlocked: UnlockKey[];        // systems/buildings visible to the player (SPEC §2.7: hidden until unlocked)
   nextGoals: { session: string; day: string; week: string };   // i18n keys/params resolved by t()
   away: AwaySummary | null;     // set by resume(now) when the player was away ≥ 5 min
+  scoutedUntil?: number;        // core-heroes: a Scout dispatch lets the player preview omens up to this night number
   expedition: ExpeditionState | null;
   stats: { kills: number; built: number; nightsWon: number; nightsLost: number; bosses: number; camps: number; expeditions: number; goldEarned: number };
   tutorial: number; buffs: { shrine: 'damage' | 'towerRate' | 'heal' | null; falseDawnT: number; hearthLightMul: number };

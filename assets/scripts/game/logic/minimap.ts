@@ -15,7 +15,8 @@ export function unprojectMinimap(mx: number, my: number, mapSize: number, px: nu
 /** Palette colours (tools/art/pixel.mjs) used for the minimap texels, RGB. */
 export const MINI_COLORS = {
   water: [0x2a, 0x4a, 0x8a], shore: [0xb9, 0x8a, 0x56], meadow: [0x4c, 0x9a, 0x4a], forest: [0x2f, 0x6b, 0x3a],
-  quarry: [0x8a, 0x5a, 0x3c], ruins: [0x73, 0x79, 0x8c], fog: [0x1b, 0x1b, 0x2f], lit: [0xf7, 0xa9, 0x3b],
+  quarry: [0x8a, 0x5a, 0x3c], ruins: [0x73, 0x79, 0x8c], snow: [0xd6, 0xda, 0xe3], ash: [0x4a, 0x4e, 0x63],
+  fog: [0x1b, 0x1b, 0x2f], lit: [0xf7, 0xa9, 0x3b], veil: [0x4b, 0x2a, 0x6b], ruin: [0x73, 0x79, 0x8c], dock: [0x7f, 0xd0, 0xf0],
   building: [0xd6, 0xda, 0xe3], hearth: [0xff, 0xe2, 0x7a], rift: [0xd0, 0x8b, 0xe8], hero: [0xf6, 0xf2, 0xe6],
   leader: [0xff, 0xe2, 0x7a], enemy: [0xd1, 0x4b, 0x4b], poi: [0xf2, 0xc6, 0x9a],
 } as const;
@@ -23,7 +24,9 @@ export const MINI_COLORS = {
 export interface MiniInput {
   size: number; biome: ArrayLike<Biome | string>; explored: ArrayLike<number>; light: ArrayLike<number>;
   night: boolean;
-  buildings: ReadonlyArray<{ x: number; y: number; w: number; h: number; id: string }>;
+  /** 1 = still behind the Gloom veil (§4.2); optional */
+  veil?: ArrayLike<number>;
+  buildings: ReadonlyArray<{ x: number; y: number; w: number; h: number; id: string; ruined?: boolean }>;
   rifts: ReadonlyArray<{ x: number; y: number; active: boolean }>;
   pois: ReadonlyArray<{ x: number; y: number }>;
   heroes: ReadonlyArray<{ x: number; y: number; leader: boolean }>;
@@ -43,7 +46,8 @@ export function fillMinimap(buf: Uint8Array, m: MiniInput): void {
   for (let i = 0; i < n * n; i++) {
     const o = i * 4;
     let c: readonly number[];
-    if (!m.explored[i]) c = MINI_COLORS.fog;
+    if (m.veil && m.veil[i]) c = (((i % n) + Math.floor(i / n)) & 1) ? MINI_COLORS.veil : [0x2b, 0x2d, 0x52];
+    else if (!m.explored[i]) c = MINI_COLORS.fog;
     else {
       const b = m.biome[i] as keyof typeof MINI_COLORS;
       c = MINI_COLORS[b] ?? MINI_COLORS.meadow;
@@ -57,7 +61,10 @@ export function fillMinimap(buf: Uint8Array, m: MiniInput): void {
     buf[o] = c[0]; buf[o + 1] = c[1]; buf[o + 2] = c[2]; buf[o + 3] = 255;
   }
   for (const p of m.pois) if (m.explored[Math.floor(p.y) * n + Math.floor(p.x)]) put(buf, n, p.x, p.y, MINI_COLORS.poi);
-  for (const b of m.buildings) for (let y = 0; y < b.h; y++) for (let x = 0; x < b.w; x++) put(buf, n, b.x + x, b.y + y, b.id === 'hearth' ? MINI_COLORS.hearth : MINI_COLORS.building);
+  for (const b of m.buildings) {
+    const c = b.id === 'hearth' ? MINI_COLORS.hearth : b.id === 'dock' ? MINI_COLORS.dock : b.ruined ? MINI_COLORS.ruin : MINI_COLORS.building;
+    for (let y = 0; y < b.h; y++) for (let x = 0; x < b.w; x++) put(buf, n, b.x + x, b.y + y, c);
+  }
   for (const r of m.rifts) if (r.active) { put(buf, n, r.x, r.y, MINI_COLORS.rift); put(buf, n, r.x + 1, r.y, MINI_COLORS.rift); put(buf, n, r.x, r.y + 1, MINI_COLORS.rift); put(buf, n, r.x + 1, r.y + 1, MINI_COLORS.rift); }
   if (m.night) for (const e of m.enemies) put(buf, n, e.x, e.y, MINI_COLORS.enemy);
   for (const h of m.heroes) put(buf, n, h.x, h.y, h.leader ? MINI_COLORS.leader : MINI_COLORS.hero);

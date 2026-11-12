@@ -53,10 +53,14 @@ export class Button {
   onTap: () => void = () => undefined;
   x = 0; y = 0; w = 0; h = 0;
 
-  constructor(parent: Node, opts: { icon?: string; text?: string; z?: number; style?: 'btn' | 'tab' | 'plain'; textColor?: readonly number[] } = {}) {
+  private frames: { up: string; down: string; disabled: string } | null = null;
+
+  constructor(parent: Node, opts: { icon?: string; text?: string; z?: number; style?: 'btn' | 'tab' | 'plain'; textColor?: readonly number[];
+    frames?: { up: string; down: string; disabled?: string } } = {}) {
     this.node = mkNode('button', parent);
     this.style = opts.style ?? 'btn';
-    this.bg = new NineSlice(this.node, this.style === 'tab' ? 'ui_tab_off' : 'ui_btn_up');
+    if (opts.frames) this.frames = { up: opts.frames.up, down: opts.frames.down, disabled: opts.frames.disabled ?? opts.frames.up };
+    this.bg = new NineSlice(this.node, this.frames ? this.frames.up : this.style === 'tab' ? 'ui_tab_off' : 'ui_btn_up');
     this.bg.show(this.style !== 'plain');
     if (opts.icon) this.icon = new SpriteHandle('icon', this.node, opts.icon);
     if (opts.text !== undefined) this.label = new BitmapText(this.node, { ax: 0.5, ay: 0.5, align: 'center', color: opts.textColor ?? PAL.w, shadow: false });
@@ -100,7 +104,8 @@ export class Button {
 
   private refresh(): void {
     if (this.style === 'plain') return;
-    if (this.style === 'tab') this.bg.setFrame(this.selected || this.pressed ? 'ui_tab_on' : 'ui_tab_off');
+    if (this.frames) this.bg.setFrame(!this.enabled ? this.frames.disabled : this.pressed || this.selected ? this.frames.down : this.frames.up);
+    else if (this.style === 'tab') this.bg.setFrame(this.selected || this.pressed ? 'ui_tab_on' : 'ui_tab_off');
     else this.bg.setFrame(!this.enabled ? 'ui_btn_disabled' : this.pressed || this.selected ? 'ui_btn_down' : 'ui_btn_up');
     this.place();
     if (this.icon) this.icon.alpha(this.enabled ? 255 : 120);

@@ -239,6 +239,119 @@ export const SFX = {
       [tone({ wave: 'square', dur: 1.0, f0: 48, f1: 36, duty: 0.5, filters: [{ type: 'lp', f0: 250 }], env }), 0, 0.4],
     ]);
   } },
+
+  // ── v2 "persistent Hold" additions (SPEC §12) ─────────────────────────────
+  // dusk bell: struck bronze bell — inharmonic partials (hum, prime, tierce, quint, nominal) with long decays,
+  // the higher partials die first; a short clapper knock on top
+  bell: { vol: 0.6, make: () => {
+    const f = 392; // G4 strike note
+    const partials = [[0.5, 0.55, 0.5], [1, 1, 0.42], [1.19, 0.5, 0.32], [1.5, 0.35, 0.26], [2, 0.45, 0.2], [2.74, 0.2, 0.12], [3.76, 0.12, 0.08]];
+    return mix([
+      ...partials.map(([k, g, d]) => [tone({ wave: 'sine', dur: 1.45, f0: f * k, vib: { rate: 3.1, depth: 0.04 }, env: { a: 0.003, decay: d } }), 0, g]),
+      [tone({ wave: 'noise', dur: 0.03, filters: [{ type: 'bp', f0: 2400, q: 1.5 }], env: perc(0.006), seed: 201 }), 0, 0.35],
+    ]);
+  } },
+
+  // collect away: a cascade of coins + sparkle rising (resources fly to the HUD)
+  collect_away: { vol: 0.55, make: () => {
+    const notes = ['E5', 'G#5', 'B5', 'E6', 'G#6'];
+    return mix([
+      ...notes.map((nm, i) => [tone({ wave: 'square', dur: 0.16, f0: n(nm), duty: 0.5, arp: [[0.05, 1.335]], env: { a: 0.002, hold: 0.05, decay: 0.04 } }), i * 0.075, 0.42]),
+      ...notes.map((nm, i) => [tone({ wave: 'triangle', dur: 0.2, f0: n(nm) * 2, env: perc(0.05) }), i * 0.075 + 0.02, 0.18]),
+      [tone({ wave: 'sine', dur: 0.4, f0: n('E7'), am: { rate: 24, depth: 0.8 }, env: { a: 0.05, decay: 0.1 } }), 0.32, 0.22],
+    ]);
+  } },
+
+  // villager work ×3: soft, quiet everyday sounds (lighter than the hero's chop/mine so they sit under the mix)
+  // 1 = hatchet on a log, 2 = hammer on an anvil, 3 = hoe scraping soil
+  villager_work_1: { vol: 0.32, make: () => mix([
+    [tone({ wave: 'triangle', dur: 0.1, f0: 300, f1: 180, env: perc(0.025) })],
+    [tone({ wave: 'noise', dur: 0.05, filters: [{ type: 'bp', f0: 1500, q: 1.1 }], env: perc(0.012), seed: 211 }), 0, 0.6],
+  ]) },
+  villager_work_2: { vol: 0.3, make: () => mix([
+    [tone({ wave: 'square', dur: 0.22, f0: 1320, duty: 0.5, env: perc(0.05) }), 0, 0.32],
+    [tone({ wave: 'square', dur: 0.18, f0: 1980 * 1.06, duty: 0.5, env: perc(0.035) }), 0, 0.18],
+    [tone({ wave: 'sine', dur: 0.06, f0: 220, f1: 120, env: perc(0.015) }), 0, 0.5],
+  ]) },
+  villager_work_3: { vol: 0.3, make: () => mix([
+    [tone({ wave: 'noise', dur: 0.2, filters: [{ type: 'bp', f0: 700, f1: 1300, q: 1.2 }], env: { a: 0.02, hold: 0.05, decay: 0.04 }, seed: 221 })],
+    [tone({ wave: 'sine', dur: 0.07, f0: 150, f1: 90, env: perc(0.02) }), 0, 0.4],
+  ]) },
+
+  // storage full: dull "thunk" of a full crate + a muted low two-note "no-room" pulse (falling)
+  storage_full: { vol: 0.5, make: () => mix([
+    [tone({ wave: 'sine', dur: 0.18, f0: 160, f1: 80, env: perc(0.05) })],
+    [tone({ wave: 'noise', dur: 0.06, filters: [{ type: 'lp', f0: 900 }], env: perc(0.02), seed: 231 }), 0, 0.6],
+    [tone({ wave: 'triangle', dur: 0.36, f0: n('D4'), arp: [[0.16, n('A3') / n('D4')]], arpAbs: true, env: { a: 0.004, hold: 0.22, decay: 0.05 } }), 0.08, 0.55],
+  ]) },
+
+  // hearth tier up: fire whoosh + rising major fanfare (bigger than level_up), long shimmering top
+  hearth_tier: { vol: 0.7, make: () => {
+    const lead = [['C5', 0.12, 0.12], ['E5', 0.24, 0.12], ['G5', 0.36, 0.12], ['C6', 0.48, 0.7]];
+    const L = lead.map(([nm, t, d]) => [tone({ wave: 'square', dur: d, f0: n(nm), duty: 0.5, vib: d > 0.3 ? { rate: 6, depth: 0.2, delay: 0.15 } : undefined, env: { a: 0.004, d: 0.08, s: 0.7, r: Math.min(0.25, d * 0.4) } }), t, 0.42]);
+    L.push([tone({ wave: 'triangle', dur: 0.82, f0: n('C4'), env: { a: 0.01, d: 0.2, s: 0.7, r: 0.3 } }), 0.48, 0.45]);
+    L.push([tone({ wave: 'square', dur: 0.7, f0: n('G5'), duty: 0.25, env: { a: 0.01, d: 0.1, s: 0.6, r: 0.25 } }), 0.48, 0.2]);
+    L.push([tone({ wave: 'noise', dur: 0.5, filters: [{ type: 'bp', f0: 300, f1: 2800, q: 0.9 }], env: { a: 0.15, d: 0.05, s: 0.6, r: 0.2 }, seed: 241 }), 0, 0.55]);
+    L.push([crackle({ dur: 0.9, density: 50, seed: 242, lp: 5000, hp: 900, env: { a: 0.2, d: 0.1, s: 0.6, r: 0.4 } }), 0.1, 0.35]);
+    return mix(L);
+  } },
+
+  // region sealed: deep gong + an otherworldly sustained major-seventh chord that blooms and fades
+  region_sealed: { vol: 0.7, make: () => mix([
+    [tone({ wave: 'sine', dur: 1.5, f0: 98, vib: { rate: 2.5, depth: 0.08 }, env: { a: 0.004, decay: 0.45 } }), 0, 0.7],
+    [tone({ wave: 'sine', dur: 1.4, f0: 98 * 2.41, env: { a: 0.004, decay: 0.25 } }), 0, 0.3],
+    ...['C5', 'E5', 'G5', 'B5'].map((nm, i) => [tone({ wave: 'triangle', dur: 1.2, f0: n(nm), vib: { rate: 5, depth: 0.15, delay: 0.2 }, env: { a: 0.18, d: 0.2, s: 0.6, r: 0.5 } }), 0.1 + i * 0.06, 0.28]),
+    [tone({ wave: 'noise', dur: 1.0, filters: [{ type: 'hp', f0: 5000 }], am: { rate: 18, depth: 0.7 }, env: { a: 0.3, decay: 0.2 }, seed: 251 }), 0.2, 0.12],
+  ]) },
+
+  // extract OK: boat whistle + bright rising "made it" jingle
+  extract_ok: { vol: 0.6, make: () => mix([
+    [tone({ wave: 'square', dur: 0.62, f0: n('G4'), duty: 0.5, arp: [[0.1, n('C5') / n('G4')], [0.2, n('E5') / n('G4')], [0.3, n('G5') / n('G4')], [0.4, n('C6') / n('G4')]], arpAbs: true,
+      env: { a: 0.003, d: 0.08, s: 0.7, r: 0.15 } }), 0, 0.5],
+    [tone({ wave: 'triangle', dur: 0.62, f0: n('C4'), arp: [[0.3, n('G4') / n('C4')]], arpAbs: true, env: { a: 0.01, d: 0.1, s: 0.7, r: 0.15 } }), 0, 0.45],
+    [tone({ wave: 'sine', dur: 0.3, f0: n('C7'), am: { rate: 20, depth: 0.7 }, env: { a: 0.03, decay: 0.08 } }), 0.4, 0.2],
+  ]) },
+
+  // extract fail (timeout / wiped): sinking "wah-wah" descent over a low drone
+  extract_fail: { vol: 0.6, make: () => {
+    const notes = [['G4', 0, 0.22], ['F#4', 0.24, 0.22], ['F4', 0.48, 0.22], ['E4', 0.72, 0.5]];
+    const L = notes.map(([nm, t, d], i) => [tone({ wave: 'square', dur: d, f0: n(nm), f1: n(nm) * 0.97, duty: 0.25, filters: [{ type: 'lp', f0: 1800 }],
+      vib: i === 3 ? { rate: 5, depth: 0.4, delay: 0.1 } : undefined, env: { a: 0.02, d: 0.06, s: 0.7, r: i === 3 ? 0.25 : 0.05 } }), t, 0.5]);
+    L.push([tone({ wave: 'triangle', dur: 1.2, f0: n('C3'), env: { a: 0.05, d: 0.2, s: 0.7, r: 0.35 } }), 0, 0.3]);
+    return mix(L);
+  } },
+
+  // last-30-s timer tick: dry wooden clock tick
+  timer_tick: { vol: 0.45, make: () => mix([
+    [tone({ wave: 'square', dur: 0.03, f0: 2400, duty: 0.5, filters: [{ type: 'bp', f0: 2400, q: 2 }], env: perc(0.005) }), 0, 0.6],
+    [tone({ wave: 'triangle', dur: 0.04, f0: 900, f1: 700, env: perc(0.008) }), 0, 0.5],
+  ]) },
+
+  // blood moon: ominous swell — low tritone drone with slow beating, rising "red" shimmer and a heart-beat thud
+  blood_moon: { vol: 0.7, drive: 1.6, make: () => {
+    const env = { a: 0.35, d: 0.2, s: 0.8, r: 0.45 };
+    return mix([
+      [tone({ wave: 'saw', dur: 1.5, f0: 73.4, filters: [{ type: 'lp', f0: 600, f1: 1200 }], vib: { rate: 3, depth: 0.2 }, env })],
+      [tone({ wave: 'saw', dur: 1.5, f0: 103.8, filters: [{ type: 'lp', f0: 600, f1: 1200 }], am: { rate: 2.2, depth: 0.5 }, env }), 0, 0.6],
+      [tone({ wave: 'sine', dur: 1.2, f0: n('D6'), f1: n('G#6'), slideDelay: 0.2, am: { rate: 9, depth: 0.6 }, env: { a: 0.4, d: 0.2, s: 0.6, r: 0.4 } }), 0.2, 0.15],
+      [tone({ wave: 'sine', dur: 0.14, f0: 70, f1: 40, env: perc(0.05) }), 0.0, 0.8],
+      [tone({ wave: 'sine', dur: 0.14, f0: 70, f1: 40, env: perc(0.05) }), 0.22, 0.6],
+    ]);
+  } },
+
+  // tower frozen: sharp ice crack + crystalline crust spreading (falling glassy chimes)
+  tower_frozen: { vol: 0.55, make: () => mix([
+    [tone({ wave: 'noise', dur: 0.05, filters: [{ type: 'hp', f0: 3500 }], env: perc(0.01), seed: 261 })],
+    [crackle({ dur: 0.4, density: 120, seed: 262, lp: 10000, hp: 4000, decay: 0.002, env: { a: 0.001, hold: 0.05, decay: 0.1 } }), 0.01, 0.6],
+    ...[n('B7'), n('G7'), n('E7')].map((f, i) => [tone({ wave: 'sine', dur: 0.25, f0: f, env: perc(0.07) }), 0.04 + i * 0.05, 0.3]),
+  ]) },
+
+  // burrower surfaces: rumbling dirt push from below + a gritty burst
+  burrow: { vol: 0.6, drive: 1.5, make: () => mix([
+    [tone({ wave: 'noise', dur: 0.5, filters: [{ type: 'lp', f0: 300, f1: 1800 }], env: { a: 0.2, hold: 0.05, decay: 0.08 }, am: { rate: 26, depth: 0.6 }, seed: 271 })],
+    [tone({ wave: 'sine', dur: 0.45, f0: 50, f1: 90, env: { a: 0.15, decay: 0.1 } }), 0, 0.7],
+    [crackle({ dur: 0.3, density: 80, seed: 272, lp: 3500, hp: 500, env: { a: 0.001, hold: 0.04, decay: 0.08 } }), 0.24, 0.7],
+  ]) },
 };
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -309,7 +422,48 @@ const boss = {
   ],
 };
 
-export const SONGS = [day, night, boss];
+// Expedition — D dorian, 4/4 @ 150 BPM, 10 bars = 16.0 s. Urgent: running sixteenth-feel bass, syncopated lead,
+// ticking hats every eighth (a clock in the drums), turnaround on Bb – C.
+const EXP_PROG = ['Dm', 'Dm', 'C', 'G', 'Dm', 'Dm', 'F', 'C', 'Bb', 'C'];
+const expedition = {
+  name: 'music_expedition', bpm: 150, beatsPerBar: 4, stepsPerBeat: 2, bars: 10,
+  channels: [
+    { wave: 'square', gain: 0.21, lowpass: 4200, echo: { delay: (60 / 150) * 0.75, fb: 0.15, wet: 0.15 },
+      inst: { duty: 0.25, a: 0.003, d: 0.08, s: 0.65, r: 0.04, gate: 0.85, vib: { rate: 7, depth: 0.12, delay: 0.15 } },
+      pattern: `D5 - . D5 F5 - A5 - | G5 - F5 - E5 - D5 . | E5 - . E5 G5 - C6 - | B5 - G5 - D5 - . . |
+                D5 - . D5 F5 - A5 - | C6 - A5 - F5 - D5 - | F5 - A5 - C6 - A5 - | G5 - E5 - C5 - . . |
+                D5 - F5 - Bb5 - F5 - | E5 - G5 - C6 - E5 -` },
+    { wave: 'square', gain: 0.08, lowpass: 3200, inst: { duty: 0.125, a: 0.002, d: 0.05, s: 0.4, r: 0.02, gate: 0.5 },
+      pattern: perBar(EXP_PROG, (c) => { const [, t, f] = chord(c, 4); return ['.', t, '.', f, '.', t, '.', f]; }) },
+    { wave: 'triangle', gain: 0.44, inst: { a: 0.003, d: 0.05, s: 0.85, r: 0.02, gate: 0.7, steps: 8 },
+      pattern: perBar(EXP_PROG, (c) => { const [r, , f] = chord(c, 2); const r3 = chord(c, 3)[0]; return [r, r, r3, r, f, r, r3, f]; }) },
+    { wave: 'noise', gain: 0.2, levels: { h: 0.5 },
+      pattern: perBar(EXP_PROG, (c, b) => b === 9 ? ['k', 's', 'k', 's', 't', 't', 's', 's']
+        : b % 4 === 3 ? ['k', 'h', 's', 'h', 'k', 's', 's', 'h']
+        : ['k', 'h', 's', 'h', 'k', 'h', 's', 'h']) },
+  ],
+};
+
+// Day 2 — G mixolydian, 4/4 @ 120 BPM, 8 bars = 16.0 s. Alternates with the F-major waltz: a brighter, walking
+// pastoral tune (village at work) with a pizzicato counter-line and a relaxed shuffle.
+const DAY2_PROG = ['G', 'C', 'G', 'D', 'Em', 'C', 'F', 'D'];
+const day2 = {
+  name: 'music_day2', bpm: 120, beatsPerBar: 4, stepsPerBeat: 2, bars: 8,
+  channels: [
+    { wave: 'square', gain: 0.22, lowpass: 3000, echo: { delay: (60 / 120) * 0.75, fb: 0.25, wet: 0.25 },
+      inst: { duty: 0.5, a: 0.01, d: 0.2, s: 0.55, r: 0.08, gate: 0.9, vib: { rate: 5, depth: 0.12, delay: 0.25 } },
+      pattern: `B4 - D5 - G5 - - F5 | E5 - - D5 C5 - E5 - | D5 - B4 - G4 - A4 B4 | A4 - - - - - . . |
+                G4 - B4 - E5 - - D5 | E5 - G5 - E5 - C5 - | F5 - - E5 D5 - C5 - | D5 - - - A4 - . .` },
+    { wave: 'square', gain: 0.09, lowpass: 2500, inst: { duty: 0.25, a: 0.004, d: 0.08, s: 0.3, r: 0.04, gate: 0.45 },
+      pattern: perBar(DAY2_PROG, (c) => { const [r, t, f] = chord(c, 4); return [r, '.', t, '.', f, '.', t, '.']; }) },
+    { wave: 'triangle', gain: 0.4, inst: { a: 0.005, d: 0.1, s: 0.8, r: 0.05, gate: 0.85, steps: 8 },
+      pattern: perBar(DAY2_PROG, (c) => { const [r, t, f] = chord(c, 2); return [r, '-', f, '-', r, '-', t, '-']; }) },
+    { wave: 'noise', gain: 0.14, levels: { h: 0.3 },
+      pattern: perBar(DAY2_PROG, (c, b) => (b % 4 === 3 ? ['k', 'h', 'h', 'k', 's', 'h', 'h', 'h'] : ['k', '.', 'h', 'h', 's', '.', 'h', '.'])) },
+  ],
+};
+
+export const SONGS = [day, night, boss, expedition, day2];
 
 // ═════════════════════════════════════════════════════════════════════════════
 // build

@@ -2,12 +2,15 @@
 // of real building sprites, paint-by-drag for 1×1 paintables (axis lock / 4-connected Bresenham), ghost + ✓/✕ for
 // the rest, range rings, synergy links, radial menu (upgrade / repair / sell), undo, edge auto-scroll.
 import type { App } from './app';
-import type { BuildingId, BuildingState, Resources } from './core';
+import type { BuildingId, BuildingState, Cost, ResKey } from './core';
 import { BUILDINGS, type BuildTab } from '../../../assets/scripts/core/data/buildings';
-import { BALANCE } from '../../../assets/scripts/core/data/balance';
 import { COL } from './font';
 import { buildingIcon } from './info';
-import { classifyDrag, paintCells, paintPlan, footprintOrigin, ringPoints, dottedLine, type Cell, type LineMode } from './shared';
+import { classifyDrag, paintCells, paintPlan, footprintOrigin, ringPoints, dottedLine, costParts, affordable as canAfford, addCost, type Cell, type LineMode } from './shared';
+import { resIcon } from './sprites2';
+
+const SYN = { flameRange: 2, embeddedRangeBonus: 1, rallyRange: 3 };
+const RELOCATE_HOLD_MS = 400;
 import { T, type Cam } from './world';
 
 const TABS: BuildTab[] = ['defense', 'light', 'traps', 'economy'];
@@ -25,17 +28,20 @@ export class BuildUI {
   pan = false;
   menu: number | null = null;
   edgeVel = { x: 0, y: 0 };
+  /** long-press relocate (SPEC §6.6): uid being dragged + target cell */
+  hold: { uid: number; t0: number; x: number; y: number } | null = null;
+  moving: { uid: number; at: Cell } | null = null;
   gridCache: { t: number; ok: Uint8Array; x0: number; y0: number; w: number; h: number } | null = null;
 
   constructor(private app: App) {}
 
   get drawerTop() { return this.app.H - this.app.safe.b - (TAB_H + CARD_H + 8); }
 
-  reset() { this.open = false; this.freeCam = false; this.sel = null; this.paint = null; this.ghost = null; this.menu = null; }
+  reset() { this.open = false; this.freeCam = false; this.sel = null; this.paint = null; this.ghost = null; this.menu = null; this.hold = null; this.moving = null; }
   enter() {
     if (this.open || !this.app.game) return;
     const s = this.app.game.state;
-    if (s.phase !== 'day' && s.phase !== 'night' && s.phase !== 'dusk') return;
+    if ((s.phase !== 'peace' && s.phase !== 'night' && s.phase !== 'dusk') || s.expedition) return;
     this.open = true; this.freeCam = true; this.menu = null;
     if (s.phase === 'dusk') { // SPEC §2.2: dusk recentres the camera on the Hearth
       const h = s.buildings.find((b) => b.uid === s.hearthUid);
@@ -47,16 +53,34 @@ export class BuildUI {
   }
   exit() {
     if (!this.open) return;
-    this.open = false; this.freeCam = false; this.sel = null; this.paint = null; this.ghost = null; this.menu = null;
+    this.open = false; this.freeCam = false; this.sel = null; this.paint = null; this.ghost = null; this.menu = null; this.hold = null; this.moving = null;
     this.app.cmd({ t: 'buildMode', on: false });
+    this.app.saveHold(); // SPEC §13.7: save on leaving build mode
   }
   toggle() { this.open ? this.exit() : this.enter(); }
   cancelGesture() { this.paint = null; this.ghostDrag = false; this.pan = false; }
 
-  ids(): BuildingId[] { return (Object.keys(BUILDINGS) as BuildingId[]).filter((id) => id !== 'hearth' && BUILDINGS[id].tab === TABS[this.tab]); }
-  locked(id: BuildingId) { return BUILDINGS[id].should && !this.app.meta.unlockedBlueprints.includes(id); }
-  cost(id: BuildingId): Resources { return this.app.game!.buildingCost(id, 1); }
-  affordable(c: Resources) { const r = this.app.state!.res; return r.wood >= c.wood && r.stone >= c.stone && r.gold >= c.gold; }
+  /** Cards of the current tab: only what the Hold has unlocked (SPEC §2.7: hidden, not greyed). */
+  ids(): BuildingId[] {
+    const s = this.app.state!;
+    return (Object.keys(BUILDINGS) as BuildingId[]).filter((id) => {
+      const d = BUILDINGS[id];
+      if (id === 'hearth' || d.tab !== TABS[this.tab] || d.tier <= 0) return false;
+      if (d.cosmetic) return s.cosmetics.owned.includes(id) || s.cosmetics.owned.includes(d.cosmetic);
+      return (s.unlocked as string[]).includes(id) || d.tier <= s.hearthTier && !(s.unlocked as string[]).length;
+    });
+  }
+  locked(_id: BuildingId) { return false; }
+  cost(id: BuildingId): Cost { return this.app.game!.buildingCost(id, 1); }
+  affordable(c: Cost) { return canAfford(this.app.state!.res, c); }
+  ruins(): BuildingState[] { return this.app.state!.buildings.filter((b) => b.ruined); }
+  /** 50% of the current-level price of every ruin (SPEC §6.6). */
+  rebuildCost(list = this.ruins()): Cost {
+    let c: Cost = {};
+    for (const b of list) c = addCost(c, this.app.game!.buildingCost(b.id, b.level as 1 | 2 | 3), 0.5);
+    for (const k of Object.keys(c) as ResKey[]) c[k] = Math.ceil(c[k]!);
+    return c;
+  }
 
   select(id: BuildingId) {
     if (this.locked(id)) { this.app.audio.sfx('fail'); return; }
@@ -65,7 +89,11 @@ export class BuildUI {
 
   tick(dt: number) {
     if (!this.open) return;
-    if ((this.paint || this.ghostDrag) && (this.edgeVel.x || this.edgeVel.y)) {
+    if (this.hold && !this.moving && performance.now() - this.hold.t0 >= RELOCATE_HOLD_MS) {
+      const b = this.app.state!.buildings.find((q) => q.uid === this.hold!.uid);
+      if (b) { this.moving = { uid: b.uid, at: { x: b.x, y: b.y } }; this.pan = false; this.app.audio.sfx('ui_click'); }
+    }
+    if ((this.paint || this.ghostDrag || this.moving) && (this.edgeVel.x || this.edgeVel.y)) {
       this.app.cam.x += this.edgeVel.x * dt * 90; this.app.cam.y += this.edgeVel.y * dt * 90; this.app.clampCam();
     }
   }
@@ -88,6 +116,11 @@ export class BuildUI {
   down(x: number, y: number) {
     if (this.menu !== null) { this.menu = null; return; }
     const c = this.cellAt(x, y);
+    const ph = this.app.state!.phase;
+    if (!this.sel && (ph === 'peace' || ph === 'dusk')) {
+      const b = this.buildingAt(c);
+      if (b && b.id !== 'hearth' && !b.ruined) this.hold = { uid: b.uid, t0: performance.now(), x, y };
+    }
     if (this.sel && BUILDINGS[this.sel].paintable) {
       this.paint = { start: c, cur: c, mode: null, cells: [c], px: x, py: y };
     } else if (this.sel) {
@@ -97,6 +130,16 @@ export class BuildUI {
     } else this.pan = true;
   }
   move(x: number, y: number, dx: number, dy: number) {
+    if (this.hold && !this.moving) {
+      if (performance.now() - this.hold.t0 >= RELOCATE_HOLD_MS) { const b = this.app.state!.buildings.find((q) => q.uid === this.hold!.uid); if (b) { this.moving = { uid: b.uid, at: { x: b.x, y: b.y } }; this.pan = false; this.app.audio.sfx('ui_click'); } }
+      else if (Math.hypot(x - this.hold.x, y - this.hold.y) > 4) this.hold = null;
+    }
+    if (this.moving) {
+      const b = this.app.state!.buildings.find((q) => q.uid === this.moving!.uid);
+      if (b) { const t = this.app.screenToTile(x, y); this.moving.at = footprintOrigin(t.x, t.y, b.w, b.h); }
+      this.setEdge(x, y);
+      return;
+    }
     if (this.paint) {
       const c = this.cellAt(x, y);
       this.paint.cur = c;
@@ -112,6 +155,13 @@ export class BuildUI {
   }
   up(x: number, y: number, kind: 'tap' | 'drag', cancel: boolean) {
     this.edgeVel = { x: 0, y: 0 };
+    this.hold = null;
+    if (this.moving) {
+      const m = this.moving; this.moving = null; this.pan = false;
+      const b = this.app.state!.buildings.find((q) => q.uid === m.uid);
+      if (!cancel && b && (m.at.x !== b.x || m.at.y !== b.y)) this.app.cmd({ t: 'relocate', uid: m.uid, x: m.at.x, y: m.at.y });
+      return;
+    }
     if (this.paint) {
       const p = this.paint; this.paint = null;
       if (!cancel && this.sel) this.app.cmd({ t: 'paint', id: this.sel, cells: p.cells });
@@ -156,7 +206,7 @@ export class BuildUI {
     // paint stroke
     if (this.paint && this.sel) {
       const id = this.sel, cost = this.cost(id);
-      const plan = paintPlan(this.paint.cells, (c) => { const r = game.canPlace(id, c.x, c.y); return r.ok || r.reason === 'cost'; }, cost, s.res);
+      const plan = paintPlan(this.paint.cells, (c) => { const r = game.canPlace(id, c.x, c.y); return r.ok || r.reason === 'cost'; }, { wood: cost.wood ?? 0, stone: cost.stone ?? 0, gold: cost.gold ?? 0 }, s.res);
       this.paint.cells.forEach((c, i) => {
         const p = S(c.x, c.y);
         if (plan.ok[i]) { A.draw(g, buildingIcon(id), p.x + 8, p.y + 16, { alpha: 0.7 }); A.draw(g, 'ui_build_ok', p.x, p.y); }
@@ -184,12 +234,28 @@ export class BuildUI {
         for (const c of this.paint.cells) if (touch(c.x, c.y) && !game.canPlace(this.sel, c.x, c.y).reason?.startsWith('b')) sides++;
         embedded = sides >= 2;
       }
-      const range = d.range[b.level - 1] + (embedded ? BALANCE.synergy.embeddedRangeBonus : 0);
+      const range = d.range[b.level - 1] + (embedded ? SYN.embeddedRangeBonus : 0);
       for (const p of ringPoints(cx, cy, range, 0.45)) { const q = S(p.x, p.y); A.drawC(g, 'ui_range_dot', q.x, q.y); }
       if (embedded && !b.synergies.includes('embedded')) app.font.draw(g, app.tr('build.synergy.embedded'), S(cx, b.y).x, S(cx, b.y).y - 34, { align: 'center', color: COL.fire });
       if (b.synergies.includes('flame')) {
-        const br = s.buildings.filter((o) => o.id === 'brazier' && o.lit && Math.hypot(o.x + 0.5 - cx, o.y + 0.5 - cy) <= BALANCE.synergy.flameRange + (b.w + 1) / 2);
+        const br = s.buildings.filter((o) => o.id === 'brazier' && o.lit && Math.hypot(o.x + 0.5 - cx, o.y + 0.5 - cy) <= SYN.flameRange + (b.w + 1) / 2);
         for (const o of br) for (const p of dottedLine(cx, cy, o.x + 0.5, o.y + 0.5, 0.35)) { const q = S(p.x, p.y); A.drawC(g, 'ui_link_dot', q.x, q.y); }
+      }
+    }
+    // relocate ghost (long-press drag)
+    if (this.moving) {
+      const b = s.buildings.find((q) => q.uid === this.moving!.uid);
+      if (b) {
+        const at = this.moving.at;
+        for (let y = 0; y < b.h; y++) for (let x = 0; x < b.w; x++) {
+          const p = S(at.x + x, at.y + y);
+          const inOld = at.x + x >= b.x && at.x + x < b.x + b.w && at.y + y >= b.y && at.y + y < b.y + b.h;
+          const ok = inOld || game.canPlace('trap_tar', at.x + x, at.y + y).ok || game.canPlace('trap_tar', at.x + x, at.y + y).reason === 'cost';
+          A.draw(g, ok ? 'ui_build_ok' : 'ui_build_bad', p.x, p.y);
+        }
+        const base = S(at.x + b.w / 2, at.y + b.h);
+        A.draw(g, buildingIcon(b.id, b.level), base.x, base.y, { alpha: 0.75 });
+        app.font.draw(g, app.tr('panel.move'), base.x, S(0, at.y).y - 30, { align: 'center', color: COL.gold });
       }
     }
     // placed-ghost
@@ -229,7 +295,7 @@ export class BuildUI {
     }
     const embedded = adj >= 2;
     let range = d.range ? d.range[0] : d.light ? d.light[0] : id === 'lumber_camp' || id === 'quarry' ? 3 : 0;
-    if (embedded && d.range) range += BALANCE.synergy.embeddedRangeBonus;
+    if (embedded && d.range) range += SYN.embeddedRangeBonus;
     if (range > 0) for (const p of ringPoints(cx, cy, range, 0.45)) A.drawC(g, 'ui_range_dot', S(p.x, p.y).x, S(p.x, p.y).y);
     if (d.minRange) for (const p of ringPoints(cx, cy, d.minRange, 0.6)) A.drawC(g, 'ui_range_dot', S(p.x, p.y).x, S(p.x, p.y).y, { alpha: 0.5 });
     if (embedded) { const p = S(cx, at.y + d.h); A.draw(g, 'bld_embed_base', p.x, p.y); }
@@ -238,10 +304,10 @@ export class BuildUI {
       for (const p of dottedLine(cx, cy, b.x + b.w / 2, b.y + b.h / 2, 0.35)) { const q = S(p.x, p.y); A.drawC(g, 'ui_link_dot', q.x, q.y); }
     };
     if (id === 'tower_arrow' || id === 'tower_ballista') {
-      const lit = s.buildings.filter((b) => b.id === 'brazier' && b.lit && near(b, BALANCE.synergy.flameRange));
+      const lit = s.buildings.filter((b) => b.id === 'brazier' && b.lit && near(b, SYN.flameRange));
       lit.forEach(link); if (lit.length) labels.push(app.tr('build.synergy.flame'));
     }
-    if (id === 'brazier') s.buildings.filter((b) => (b.id === 'tower_arrow' || b.id === 'tower_ballista') && near(b, BALANCE.synergy.flameRange)).forEach(link);
+    if (id === 'brazier') s.buildings.filter((b) => (b.id === 'tower_arrow' || b.id === 'tower_ballista') && near(b, SYN.flameRange)).forEach(link);
     if (id === 'trap_tar' || id === 'trap_spikes') {
       const other = id === 'trap_tar' ? 'trap_spikes' : 'trap_tar';
       const n = s.buildings.filter((b) => b.id === other && Math.abs(b.x - at.x) + Math.abs(b.y - at.y) === 1);
@@ -249,7 +315,7 @@ export class BuildUI {
     }
     if (id.startsWith('tower')) {
       const leader = s.heroes.find((h) => h.leader);
-      if (leader && Math.hypot(leader.x - cx, leader.y - cy) <= BALANCE.synergy.rallyRange) {
+      if (leader && Math.hypot(leader.x - cx, leader.y - cy) <= SYN.rallyRange) {
         for (const p of dottedLine(cx, cy, leader.x, leader.y, 0.35)) { const q = S(p.x, p.y); A.drawC(g, 'ui_link_dot', q.x, q.y, { alpha: 0.7 }); }
         labels.push(app.tr('build.synergy.rally'));
       }
@@ -264,16 +330,23 @@ export class BuildUI {
     const cam = app.camRect();
     const cx = Math.round((b.x + b.w / 2) * T - cam.x), cy = Math.round((b.y + b.h / 2) * T - cam.y);
     const name = app.tr(`bld.${b.id}.name`);
-    app.font.draw(g, `${name} ${app.tr('ui.level', { n: b.level })}`, cx, cy - 40, { align: 'center', color: COL.gold });
+    app.font.draw(g, b.ruined ? `${app.tr('build.ruin')}: ${name}` : `${name} ${app.tr('panel.level', { n: b.level })}`, cx, cy - 40, { align: 'center', color: COL.gold });
     const r = 24;
-    const items: Array<{ id: string; icon: string; onTap: () => void; disabled: boolean; cost?: Resources }> = [];
-    const canUp = d.upgradeTo !== undefined || b.level < d.maxLevel;
-    if (b.id === 'hearth' || canUp) {
-      const c = d.upgradeTo ? game.buildingCost(d.upgradeTo, 1) : game.buildingCost(b.id, Math.min(3, b.level + 1) as 1 | 2 | 3);
-      items.push({ id: 'menuUp', icon: 'icon_upgrade', onTap: () => { app.cmd({ t: 'upgrade', uid: b.uid }); }, disabled: !canUp || !this.affordable(c), cost: c });
+    const items: Array<{ id: string; icon: string; onTap: () => void; disabled: boolean; cost?: Cost }> = [];
+    if (b.ruined) {
+      const c = this.rebuildCost([b]);
+      items.push({ id: 'menuRebuild', icon: 'icon_rebuild', onTap: () => { app.cmd({ t: 'rebuild', uid: b.uid }); this.menu = null; }, disabled: !this.affordable(c), cost: c });
+      items.push({ id: 'menuClear', icon: 'icon_close', onTap: () => { app.cmd({ t: 'clearRuin', uid: b.uid }); this.menu = null; }, disabled: false });
+    } else {
+      const canUp = b.id !== 'hearth' && (d.upgradeTo !== undefined || b.level < d.maxLevel);
+      if (canUp) {
+        const c = d.upgradeTo ? game.buildingCost(d.upgradeTo, 1) : game.buildingCost(b.id, Math.min(3, b.level + 1) as 1 | 2 | 3);
+        items.push({ id: 'menuUp', icon: 'icon_upgrade', onTap: () => { app.cmd({ t: 'upgrade', uid: b.uid }); }, disabled: !this.affordable(c), cost: c });
+      }
+      if (b.maxHp > 1 && b.id !== 'hearth') items.push({ id: 'menuRepair', icon: 'icon_wrench', onTap: () => app.cmd({ t: 'repair', uid: b.uid }), disabled: b.hp >= b.maxHp });
+      if (b.id !== 'hearth') items.push({ id: 'menuSell', icon: 'icon_sell', onTap: () => { app.cmd({ t: 'sell', uid: b.uid }); this.menu = null; }, disabled: false });
+      if (b.id !== 'hearth' && (s.phase === 'peace' || s.phase === 'dusk')) items.push({ id: 'menuMove', icon: 'icon_relocate', onTap: () => { this.moving = { uid: b.uid, at: { x: b.x, y: b.y } }; this.menu = null; }, disabled: false });
     }
-    if (b.maxHp > 1) items.push({ id: 'menuRepair', icon: 'icon_wrench', onTap: () => app.cmd({ t: 'repair', uid: b.uid }), disabled: b.hp >= b.maxHp });
-    if (b.id !== 'hearth') items.push({ id: 'menuSell', icon: 'icon_sell', onTap: () => { app.cmd({ t: 'sell', uid: b.uid }); this.menu = null; }, disabled: false });
     items.forEach((it, i) => {
       const a = -Math.PI / 2 + (i - (items.length - 1) / 2) * 1.1;
       const bx = Math.round(cx + Math.cos(a) * r - 12), by = Math.round(cy + Math.sin(a) * r - 12);
@@ -334,10 +407,20 @@ export class BuildUI {
     // resource legend on the drawer edge
     const r = app.state!.res;
     let lx = safe.l + 4;
-    for (const [k, c] of [['wood', COL.wood], ['stone', COL.stone], ['gold', COL.gold]] as const) {
-      A.drawTL(g, `icon_${k}`, lx, top - 20);
+    for (const [k, c] of [['wood', COL.wood], ['stone', COL.stone], ['gold', COL.gold], ['iron', COL.grey]] as const) {
+      if (k === 'iron' && !r.iron) continue;
+      A.drawTL(g, resIcon(k), lx, top - 20);
       f.draw(g, String(Math.floor(r[k])), lx + 17, top - 15, { color: c });
-      lx += 17 + f.width(String(Math.floor(r[k]))) + 6;
+      lx += 17 + f.width(String(Math.floor(r[k]))) + 5;
+    }
+    // Rebuild all (SPEC §6.6): shows the total price of every ruin
+    const ruins = this.ruins();
+    if (ruins.length && app.state!.phase !== 'night') {
+      const c = this.rebuildCost(ruins);
+      const lbl = `${app.tr('build.rebuildAll')} (${ruins.length})`;
+      const w = f.width(lbl) + 26;
+      ui.button('rebuildAll', safe.l + 4, top - 50, w, 22, lbl, () => app.cmd({ t: 'rebuildAll' }), { icon: 'icon_rebuild', disabled: !this.affordable(c) });
+      costTag(app, c, safe.l + 4 + w + 4 + 30, top - 47);
     }
   }
 
@@ -355,10 +438,8 @@ export class BuildUI {
     const lines = f.wrap(app.tr(`bld.${id}.name`), CARD_W - 4).slice(0, 2);
     f.drawLines(g, lines, x + CARD_W / 2, y + 47, { align: 'center', color: sel ? COL.gold : COL.white });
     const c = this.cost(id), r = app.state!.res;
-    const parts: Array<[number, string, boolean]> = [];
-    if (c.wood) parts.push([c.wood, COL.wood, r.wood >= c.wood]);
-    if (c.stone) parts.push([c.stone, COL.stone, r.stone >= c.stone]);
-    if (c.gold) parts.push([c.gold, COL.gold, r.gold >= c.gold]);
+    const COLS: Partial<Record<ResKey, string>> = { wood: COL.wood, stone: COL.stone, gold: COL.gold, iron: COL.grey };
+    const parts: Array<[number, string, boolean]> = costParts(c).slice(0, 3).map((q) => [q.amount, COLS[q.res] ?? COL.white, r[q.res] >= q.amount]);
     const txt = parts.map((p) => String(p[0]));
     const totalW = txt.reduce((a, t) => a + f.width(t), 0) + (txt.length - 1) * 4;
     let cx = Math.round(x + CARD_W / 2 - totalW / 2);
@@ -367,9 +448,9 @@ export class BuildUI {
 }
 
 /** Resource cost label floating over the finger: "-12" per resource in its colour next to its icon. */
-export function costTag(app: App, c: Resources, x: number, y: number, count?: number) {
+export function costTag(app: App, c: Cost, x: number, y: number, count?: number) {
   const g = app.b, A = app.atlas, f = app.font;
-  const parts = (['wood', 'stone', 'gold'] as const).filter((k) => c[k] > 0);
+  const parts = costParts(c).map((q) => q.res);
   const label = count !== undefined ? `x${count}` : '';
   const widths = parts.map((k) => 15 + f.width(String(c[k])));
   const w = widths.reduce((a, b) => a + b, 0) + (label ? f.width(label) + 4 : 0) + 6;
@@ -378,8 +459,8 @@ export function costTag(app: App, c: Resources, x: number, y: number, count?: nu
   let cx = x0 + 3;
   if (label) { f.draw(g, label, cx, y + 5, { color: COL.white }); cx += f.width(label) + 4; }
   parts.forEach((k, i) => {
-    A.drawTL(g, `icon_${k}`, cx - 2, Math.round(y));
-    f.draw(g, String(c[k]), cx + 13, y + 5, { color: app.state!.res[k] >= c[k] ? COL.white : COL.red });
+    A.drawTL(g, resIcon(k), cx - 2, Math.round(y));
+    f.draw(g, String(c[k]), cx + 13, y + 5, { color: app.state!.res[k] >= (c[k] ?? 0) ? COL.white : COL.red });
     cx += widths[i];
   });
 }

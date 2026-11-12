@@ -1,13 +1,13 @@
 // World renderer: tiles (+ biome edge overlays), y-sorted props/buildings/units with interpolation,
 // projectiles, FX, light overlay, veiled eyes. Everything is drawn in art px on the back buffer.
 import type { Atlas } from './atlas';
-import type { AllyState, BuildingState, EnemyState, GameState, HeroState, PoiState, ResourceNode } from './core';
+import type { AllyState, BuildingState, EnemyState, GameState, HeroUnit, PoiState, ResourceNode, Villager } from './core';
 import type { Fx } from './fx';
 import { LightOverlay } from './light';
 import {
-  edgeOverlays, materialOf, tileSprite, type Material, heroSprite, enemySprite, buildingSprites, isFloorBuilding, nodeSprite, nodeShadow,
-  poiSprite, projectileSprite, unitShadow, lerpPos, statusIcons, crackOverlay, isBoss, animFrame,
+  edgeOverlays, materialOf, tileSprite, type Material, isFloorBuilding, nodeShadow, projectileSprite, unitShadow, lerpPos, statusIcons, crackOverlay, animFrame,
 } from './shared';
+import { allySprite, beaconFlame, building2, enemy2, garrisonSprite, hero2, isBoss2, node2, poi2, projectile2, rubbleSprite, villagerSprite } from './sprites2';
 
 export const T = 16;
 
@@ -17,7 +17,7 @@ interface Drawable { y: number; draw: () => void }
 
 export class WorldRenderer {
   light = new LightOverlay();
-  edgeCache: { seed: number; size: number; pieces: string[][] } | null = null;
+  edgeCache: { biome: unknown; size: number; pieces: string[][] } | null = null;
   /** uids of buildings hit recently (edge arrows) */
   attacked = new Map<number, number>();
 
@@ -29,12 +29,12 @@ export class WorldRenderer {
     const at = (x: number, y: number): Material => (x < 0 || y < 0 || x >= size || y >= size ? 'water' : materialOf(biome[y * size + x]));
     const pieces: string[][] = new Array(size * size);
     for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) pieces[y * size + x] = edgeOverlays(x, y, at);
-    this.edgeCache = { seed: s.seed, size, pieces };
+    this.edgeCache = { biome, size, pieces };
   }
 
   drawGround(ctx: CanvasRenderingContext2D, s: GameState, cam: Cam, t: number) {
     const { size, biome, variant } = s.map;
-    if (!this.edgeCache || this.edgeCache.seed !== s.seed || this.edgeCache.size !== size) this.buildEdges(s);
+    if (!this.edgeCache || this.edgeCache.biome !== biome || this.edgeCache.size !== size) this.buildEdges(s);
     const X0 = Math.floor(cam.x / T), Y0 = Math.floor(cam.y / T);
     const X1 = Math.ceil((cam.x + cam.w) / T), Y1 = Math.ceil((cam.y + cam.h) / T);
     const wf = Math.floor(t * 1.6) % 2;
@@ -48,6 +48,27 @@ export class WorldRenderer {
       for (const p of ec.pieces[y * size + x]) this.atlas.draw(ctx, p, x * T - cam.x, y * T - cam.y);
   }
 
+  /** Gloom Veil over regions not yet opened (SPEC §4.2): opaque purple interior + rolling mist tiles on its edge. */
+  drawVeil(ctx: CanvasRenderingContext2D, s: GameState, cam: Cam, t: number) {
+    const veil = s.map.veil; if (!veil || s.expedition) return;
+    const size = s.map.size;
+    const X0 = Math.max(0, Math.floor(cam.x / T)), Y0 = Math.max(0, Math.floor(cam.y / T));
+    const X1 = Math.min(size - 1, Math.ceil((cam.x + cam.w) / T)), Y1 = Math.min(size - 1, Math.ceil((cam.y + cam.h) / T) + 1);
+    const f = Math.floor(t * 4);
+    for (let y = Y0; y <= Y1; y++) for (let x = X0; x <= X1; x++) {
+      if (!veil[y * size + x]) continue;
+      this.atlas.draw(ctx, 'veil_fill', x * T - cam.x, y * T - cam.y);
+    }
+    // mist edge: veiled tiles that touch an open tile get the rolling 16×24 mist on top
+    for (let y = Y0; y <= Y1; y++) for (let x = X0; x <= X1; x++) {
+      const i = y * size + x;
+      if (!veil[i]) continue;
+      const open = (xx: number, yy: number) => xx >= 0 && yy >= 0 && xx < size && yy < size && !veil[yy * size + xx];
+      if (!(open(x + 1, y) || open(x - 1, y) || open(x, y + 1) || open(x, y - 1))) continue;
+      this.atlas.drawTL(ctx, `veil_${(f + x * 3 + y * 5) % 4}`, x * T - cam.x, y * T - cam.y - 8);
+    }
+  }
+
   // ── entities ────────────────────────────────────────────────────────────
   /** Feet offset (art px) of a unit below its core position (tile-centre based). */
   static FEET = 3;
@@ -55,11 +76,17 @@ export class WorldRenderer {
   drawFloor(ctx: CanvasRenderingContext2D, s: GameState, cam: Cam, t: number) {
     const A = this.atlas;
     for (const b of s.buildings) {
-      if (!isFloorBuilding(b.id)) continue;
+      if (!isFloorBuilding(b.id) && !b.ruined) continue;
+      if (b.ruined) {
+        const x = Math.round((b.x + b.w / 2) * T - cam.x), y = Math.round((b.y + b.h) * T - cam.y);
+        if (x < -40 || y < -16 || x > cam.w + 40 || y > cam.h + 48) continue;
+        this.atlas.draw(ctx, rubbleSprite(b), x, y);
+        continue;
+      }
       const x = Math.round((b.x + 0.5) * T - cam.x), y = Math.round((b.y + 1) * T - cam.y);
       if (x < -16 || y < -16 || x > cam.w + 16 || y > cam.h + 32) continue;
       const flash = this.fx.flash.has(b.uid);
-      A.draw(ctx, buildingSprites(b, t).base, x, y, { alpha: b.constructing > 0 ? 0.55 : 1, tint: flash ? '#f6f2e6' : undefined, scale: this.bscale(b.uid) });
+      A.draw(ctx, building2(b, t, { hearthTier: s.hearthTier }).base, x, y, { alpha: b.constructing > 0 ? 0.55 : 1, tint: flash ? '#f6f2e6' : undefined, scale: this.bscale(b.uid) });
       if (b.synergies.includes('tarSpike')) A.drawC(ctx, 'ui_link_dot', x, y - 8);
     }
   }
@@ -84,7 +111,7 @@ export class WorldRenderer {
       list.push({ y: p.kind === 'rift' ? wy - 24 : wy, draw: () => this.drawPoi(ctx, p, sx(wx), sy(wy), t) });
     }
     for (const b of s.buildings) {
-      if (isFloorBuilding(b.id)) continue;
+      if (isFloorBuilding(b.id) || b.ruined) continue;
       const wx = (b.x + b.w / 2) * T, wy = (b.y + b.h) * T;
       if (!vis(wx, wy, 64)) continue;
       list.push({ y: wy - 1, draw: () => this.drawBuilding(ctx, s, b, sx(wx), sy(wy), t) });
@@ -93,6 +120,13 @@ export class WorldRenderer {
       const p = lerpPos(h, a); const wx = p.x * T, wy = p.y * T + F;
       if (!vis(wx, wy)) continue;
       list.push({ y: wy, draw: () => this.drawHero(ctx, h, sx(wx), sy(wy), t) });
+    }
+    if (!s.expedition) for (const v of s.villagers ?? []) {
+      if (v.anim === 'shell') continue; // hidden indoors at night
+      const p = lerpPos(v, a); const wx = p.x * T, wy = p.y * T + F;
+      if (!vis(wx, wy)) continue;
+      const job = v.job ? s.buildings.find((b) => b.uid === v.job)?.id ?? null : null;
+      list.push({ y: wy, draw: () => this.drawVillager(ctx, v, job, sx(wx), sy(wy), t) });
     }
     for (const u of s.allies ?? []) {
       if (u.hp <= 0) continue;
@@ -111,8 +145,15 @@ export class WorldRenderer {
     for (const d of list) d.draw();
   }
 
+  private drawVillager(ctx: CanvasRenderingContext2D, v: Villager, job: string | null, x: number, y: number, t: number) {
+    this.atlas.draw(ctx, 'prop_shadow_s', x, y + 1);
+    const name = villagerSprite(v, job);
+    this.atlas.draw(ctx, name, x, y, { flip: v.facing < 0 });
+    if (v.hungry) { const f = this.atlas.frames[name]; this.atlas.drawC(ctx, 'icon_hungry', x, y - (f ? f.ay : 14) - 6 + Math.round(Math.sin(t * 3) * 1)); }
+  }
+
   private drawNode(ctx: CanvasRenderingContext2D, n: ResourceNode, x: number, y: number, t: number) {
-    const name = nodeSprite(n);
+    const name = node2(n);
     if (!name) return;
     const sh = n.hp > 0 ? nodeShadow(n.kind) : null;
     if (sh) this.atlas.draw(ctx, sh, x, y + 1);
@@ -121,10 +162,10 @@ export class WorldRenderer {
   }
 
   private drawPoi(ctx: CanvasRenderingContext2D, p: PoiState, x: number, y: number, t: number) {
-    const name = poiSprite(p, t);
+    const name = poi2(p, t);
     if (!name) return;
     if (p.kind === 'chest' || p.kind === 'root') this.atlas.draw(ctx, 'prop_shadow_s', x, y + 1);
-    this.atlas.draw(ctx, name, x, p.kind === 'rift' ? y + 8 : y);
+    this.atlas.draw(ctx, name, x, p.kind === 'rift' ? y + 8 : p.kind === 'heart' ? y + 8 : y);
     if (p.active && p.maxHp > 0 && p.hp > 0 && p.hp < p.maxHp && p.kind !== 'rift') this.bar(ctx, x, y - 24, p.hp / p.maxHp, 'bar_fill_red');
   }
 
@@ -133,7 +174,7 @@ export class WorldRenderer {
     const flash = this.fx.flash.has(b.uid);
     const o = { alpha: b.constructing > 0 ? 0.6 + 0.25 * Math.sin(t * 20) : 1, scale: this.bscale(b.uid), tint: flash ? '#f6f2e6' : undefined };
     if (b.synergies.includes('embedded')) A.draw(ctx, 'bld_embed_base', x, y);
-    const spr = buildingSprites(b.id === 'hearth' ? { ...b, level: s.hearthLevel } : b, t);
+    const spr = building2(b, t, { hearthTier: s.hearthTier, wallSkin: s.cosmetics?.wallSkin });
     A.draw(ctx, spr.base, x, y, o);
     const f = A.frames[spr.base];
     const top = f ? y - f.ay : y - 24;
@@ -143,14 +184,24 @@ export class WorldRenderer {
     const ft = animFrame(t, 6, 2);
     if (b.synergies.includes('flame')) A.draw(ctx, `bld_flame_tip_${ft}`, x, top + 3);
     if (b.synergies.includes('rally')) A.draw(ctx, `bld_rally_flag_${ft}`, x + 5, top + 5);
+    // v2 overlays: beacon flame on the Hearth (dusk/night), garrisoned hero, module, banner, frost / fire
+    if (b.id === 'hearth' && (s.phase === 'night' || s.phase === 'dusk')) A.draw(ctx, beaconFlame(s.beacon, t), x, top + 2);
+    if (b.garrison) A.draw(ctx, garrisonSprite(b.garrison, t + b.uid * 0.37), x, top + 6);
+    if (b.module) A.drawC(ctx, `bld_module_${b.module}`, x + (b.w * T) / 2 - 3, y - 5);
+    const banner = s.cosmetics?.banner;
+    if (banner && (b.id === 'gate' || (b.id.startsWith('tower') && b.level >= 2))) A.draw(ctx, `${/^\d+$/.test(banner) ? 'banner_' + banner : banner}_${ft}`, x - 5, top + 6);
+    const flame = s.cosmetics?.flame;
+    if (b.id === 'hearth' && flame && flame !== 'ember' && flame !== 'flame_ember') A.draw(ctx, `hearth_flame_${flame.replace(/^flame_/, '')}_${animFrame(t, 6, 4)}`, x, top + 4);
+    if (b.frozenT > 0) A.draw(ctx, b.frozenT > 1.5 ? 'bld_frozen_2' : 'bld_frozen_1', x, y);
+    if (b.burningT > 0) A.draw(ctx, `bld_burning_${animFrame(t, 9, 3)}`, x, y - 2);
     if (b.maxHp > 0 && b.hp < b.maxHp && b.id !== 'hearth' && (this.attacked.has(b.uid) || b.hp / b.maxHp < 0.5))
       this.bar(ctx, x, top - 4, b.hp / b.maxHp, 'bar_fill_green');
   }
 
-  private drawHero(ctx: CanvasRenderingContext2D, h: HeroState, x: number, y: number, t: number) {
+  private drawHero(ctx: CanvasRenderingContext2D, h: HeroUnit, x: number, y: number, t: number) {
     const A = this.atlas;
     A.draw(ctx, 'prop_shadow_s', x, y + 1);
-    const name = heroSprite(h);
+    const name = hero2(h);
     A.draw(ctx, name, x, y, { flip: h.facing < 0, tint: this.fx.flash.has(h.uid) ? '#f6f2e6' : undefined });
     const f = A.frames[name]; const top = f ? y - f.ay : y - 16;
     if (h.anim !== 'down' && h.hp < h.maxHp) this.bar(ctx, x, top - 4, h.hp / h.maxHp, 'bar_fill_green');
@@ -160,7 +211,7 @@ export class WorldRenderer {
   private drawAlly(ctx: CanvasRenderingContext2D, u: AllyState, x: number, y: number) {
     const A = this.atlas;
     A.draw(ctx, 'prop_shadow_s', x, y + 1);
-    const name = enemySprite({ id: u.id === 'turret' ? 'turret' : 'militia', anim: u.anim, animT: u.animT } as any);
+    const name = allySprite(u);
     A.draw(ctx, name, x, y, { flip: u.facing < 0, tint: this.fx.flash.has(u.uid) ? '#f6f2e6' : undefined });
     const f = A.frames[name]; const top = f ? y - f.ay : y - 16;
     if (u.hp < u.maxHp) this.bar(ctx, x, top - 4, u.hp / u.maxHp, 'bar_fill_green');
@@ -168,13 +219,14 @@ export class WorldRenderer {
 
   private drawEnemy(ctx: CanvasRenderingContext2D, e: EnemyState, x: number, y: number, t: number) {
     const A = this.atlas;
-    const name = enemySprite(e);
+    const name = enemy2(e);
     const hover = e.flying || e.id === 'unlit' ? Math.round(Math.sin(t * 4 + e.uid) * 1.5) - 5 : 0;
-    A.draw(ctx, e.elite ? 'prop_shadow_m' : unitShadow(e.id), x, y + 1);
+    A.draw(ctx, e.elite || e.id === 'champion' ? 'prop_shadow_m' : isBoss2(e.id) ? 'prop_shadow_l' : unitShadow(e.id), x, y + 1);
     if (e.elite) for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) A.draw(ctx, name, x + dx, y + dy + hover, { flip: e.facing < 0, tint: '#ffe27a' });
     A.draw(ctx, name, x, y + hover, { flip: e.facing < 0, tint: this.fx.flash.has(e.uid) ? '#f6f2e6' : undefined });
     const f = A.frames[name]; const top = f ? y + hover - f.ay : y - 18;
-    if (!isBoss(e.id) && e.hp < e.maxHp) this.bar(ctx, x, top - 4, e.hp / e.maxHp, 'bar_fill_red');
+    if (e.championSkill) A.draw(ctx, `champion_${e.championSkill}_${animFrame(t, 6, 2)}`, x, y + hover);
+    if (!isBoss2(e.id) && e.hp < e.maxHp) this.bar(ctx, x, top - 4, e.hp / e.maxHp, 'bar_fill_red');
     this.status(ctx, e.status, x, top - 4, t);
   }
 
@@ -193,8 +245,8 @@ export class WorldRenderer {
       const x = Math.round(p.x * T - cam.x), y = Math.round(p.y * T + WorldRenderer.FEET - cam.y);
       if (x < -16 || x > cam.w + 16 || y < -16 || y > cam.h + 32) continue;
       const blink = Math.floor(t * 1.5 + e.uid * 0.37) % 6 === 0 ? 1 : 0;
-      const f = this.atlas.frames[enemySprite(e)];
-      const eyeY = y - (f ? Math.round(f.h * 0.55) : 9) - (isBoss(e.id) ? 10 : 0);
+      const f = this.atlas.frames[enemy2(e)];
+      const eyeY = y - (f ? Math.round(f.h * 0.55) : 9) - (isBoss2(e.id) ? 10 : 0);
       this.atlas.drawC(ctx, `enemy_eyes_veiled_${blink}`, x + (e.facing < 0 ? -1 : 1), eyeY);
     }
   }
@@ -224,6 +276,15 @@ export class WorldRenderer {
           const wx = (z.x + (z.x2 - z.x) * u) * T, wy = (z.y + (z.y2 - z.y) * u) * T;
           A.drawC(ctx, `fx_firewall_${(Math.floor(t * 10) + i) % 3}`, wx - cam.x, wy - cam.y - 4, { alpha: fade });
         }
+      } else if (z.kind === 'thorns' || z.kind === 'blizzard' || z.kind === 'flare') {
+        const base = z.kind === 'thorns' ? 'fx_thorns' : z.kind === 'blizzard' ? 'fx_blizzard' : 'fx_flare';
+        const n = Math.max(1, Math.round(Math.max(z.r, Math.hypot(z.x2 - z.x, z.y2 - z.y)) * 1.2));
+        for (let i = 0; i < n; i++) {
+          const u = n > 1 ? i / (n - 1) : 0.5;
+          const wx = z.kind === 'thorns' ? (z.x + (z.x2 - z.x) * u) * T : (z.x + Math.cos(i * 2.4) * z.r * 0.6 * u) * T;
+          const wy = z.kind === 'thorns' ? (z.y + (z.y2 - z.y) * u) * T : (z.y + Math.sin(i * 2.4) * z.r * 0.6 * u) * T;
+          A.drawC(ctx, `${base}_${(Math.floor(t * 8) + i) % 3}`, wx - cam.x, wy - cam.y - 4, { alpha: fade });
+        }
       } else {
         const cx = z.x * T - cam.x, cy = z.y * T - cam.y;
         const pts = Math.max(8, Math.round(z.r * 10));
@@ -245,8 +306,8 @@ export class WorldRenderer {
       if (x < -32 || y < -48 || x > cam.w + 32 || y > cam.h + 48) continue;
       const z = Math.round(p.z * T);
       if (z > 2) A.draw(ctx, 'prop_shadow_s', x, y + 2, { alpha: 0.6 });
-      const name = projectileSprite(p, t);
-      const rot = p.kind === 'fireball' || p.kind === 'mortar' || p.kind === 'spit' ? undefined : p.angle;
+      const name = projectile2(p.kind) ?? projectileSprite(p, t);
+      const rot = p.kind === 'fireball' || p.kind === 'mortar' || p.kind === 'spit' || p.kind === 'bomb' || p.kind === 'barrel' || p.kind === 'boulder' ? undefined : p.angle;
       A.drawC(ctx, name, x, y - z, { rot });
     }
   }

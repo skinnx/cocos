@@ -3,7 +3,7 @@
 //   node tools/audio/verify.mjs
 // Checks: manifest ↔ files, WAV header validity (RIFF/PCM/mono/22050/16-bit), duration matches manifest,
 // no NaN / no clipped samples, peak within [-3, -0.5] dBFS, audible RMS, click-free SFX edges,
-// music loops exactly N bars with a continuous seam, music durations per SPEC, total size < 3 MB,
+// music loops exactly N bars with a continuous seam, music durations per SPEC, total size < 5 MB,
 // and the per-SFX "listen proxy" intent checks from analyze.mjs.
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -13,13 +13,16 @@ import { analyse, pitchTrack, INTENT } from './analyze.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const DIR = join(ROOT, 'assets', 'resources', 'audio');
-const MAX_TOTAL = 3_000_000; // bytes ("3 MB", decimal — stricter than 3 MiB)
+const MAX_TOTAL = 5_000_000; // bytes ("5 MB" per SPEC §12 v2, decimal — stricter than 5 MiB)
 
 const REQUIRED_SFX = ['step', 'chop', 'mine', 'coin', 'place', 'place_fail', 'upgrade', 'sell', 'arrow', 'ballista',
   'mortar_fire', 'explosion', 'frost', 'spark', 'hero_hit_1', 'hero_hit_2', 'hero_hit_3', 'enemy_hit', 'enemy_die',
   'wall_break', 'brazier_on', 'brazier_off', 'night_horn', 'rally_horn', 'boon_pick', 'level_up', 'ui_click',
-  'victory', 'defeat', 'boss_roar'];
-const MUSIC = { music_day: [24, 32], music_night: [16, 24], music_boss: [16, 24] };
+  'victory', 'defeat', 'boss_roar',
+  // v2 (SPEC §12 "Hold" additions)
+  'bell', 'collect_away', 'villager_work_1', 'villager_work_2', 'villager_work_3', 'storage_full', 'hearth_tier',
+  'region_sealed', 'extract_ok', 'extract_fail', 'timer_tick', 'blood_moon', 'tower_frozen', 'burrow'];
+const MUSIC = { music_day: [16, 32], music_night: [16, 32], music_boss: [16, 32], music_expedition: [16, 32], music_day2: [16, 32] }; // loops of 16–32 s (SPEC §12)
 
 const errors = [];
 const fail = (name, msg) => errors.push(`${name}: ${msg}`);
@@ -31,7 +34,7 @@ const files = man.files ?? {};
 
 for (const n of [...REQUIRED_SFX, ...Object.keys(MUSIC)]) if (!files[n]) fail(n, 'missing from audio.json');
 const sfxCount = Object.values(files).filter((f) => f.category === 'sfx').length;
-if (sfxCount < 28) fail('audio.json', `only ${sfxCount} SFX (need ≥ 28)`);
+if (sfxCount < 44) fail('audio.json', `only ${sfxCount} SFX (need ≥ 44: v1 30 + v2 14)`);
 const onDisk = readdirSync(DIR).filter((f) => f.endsWith('.wav'));
 for (const f of onDisk) if (!Object.values(files).some((e) => e.file === f)) fail(f, 'WAV not listed in audio.json');
 

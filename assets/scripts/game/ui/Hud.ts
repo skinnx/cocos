@@ -1,35 +1,37 @@
-// In-run HUD (SPEC §10.2), laid out in UI px inside the safe area:
-//   top-left Hearth bar + wood/stone/gold · top-centre phase clock (sun/moon on an arc) + "Night n/10" + enemies left
-//   top-right Pause + minimap · left-middle hero portraits with HP and skill-cooldown rings · bottom-right Hammer and
-//   Rally Horn (charge ring) · bottom-centre "Call night early" (DAY) / "Start night" (DUSK) · edge arrows · boss bar ·
-//   banners · resources flying to the HUD · low-Hearth red vignette.
+// In-hold HUD (SPEC §10.2 + §10.5), laid out in UI px inside the safe area:
+//   top-left   Hearth bar + 7 warmth coals + active blessings (nights left) · wood / stone / gold / iron (tap → Storage)
+//   top-centre phase clock (sun/moon on an arc) + "NIGHT n" + moon phase + "Threat x/cap"; at night foes left + beacon
+//   top-right  Pause + minimap · left-middle hero portraits (HP + skill-cooldown ring) · bottom-right Hammer + Horn
+//   (night; by day the bottom bar carries Build) · edge arrows · boss bar · banners · flying resources · vignette.
 import { BALANCE } from '../../core/data/balance';
 import { Sprite, Vec2, type Node } from 'cc';
-import type { GameEvent, GameState, HeroId } from '../../core/api';
+import type { GameEvent, GameState, HeroId, ResKey } from '../../core/api';
 import type { Ctx } from '../Ctx';
 import { edgeArrow } from '../logic/minimap';
 import { flyPath, FLY_SEC, hudBump, lowHearthAlpha } from '../logic/juice';
-import { fmtNum } from '../logic/text';
-import { tr } from '../logic/strings';
+import { abbrev, resIcon } from '../logic/format';
+import { tr, trOr } from '../logic/strings';
 import { mkNode, PAL, SpriteHandle } from '../render/Nodes';
 import { BitmapText } from './BitmapText';
 import { NineSlice } from './NineSlice';
 import { Button, IconValue, uiInput, type Hit } from './UiKit';
 import { Minimap } from './Minimap';
 
-interface Fly { h: SpriteHandle; t: number; x0: number; y0: number; x1: number; y1: number; res: 'wood' | 'stone' | 'gold' }
+type HudRes = 'wood' | 'stone' | 'gold' | 'iron';
+const HUD_RES: HudRes[] = ['wood', 'stone', 'gold', 'iron'];
+interface Fly { h: SpriteHandle; t: number; x0: number; y0: number; x1: number; y1: number; res: ResKey }
 
 export class Bar {
   readonly node: Node;
   readonly frame: NineSlice;
   readonly fill: SpriteHandle;
-  constructor(parent: Node, readonly fillName: string, public w: number, public h: number) {
+  constructor(parent: Node, readonly fillName: string, public w: number, public h: number, frame = 'ui_bar_frame') {
     this.node = mkNode('bar', parent);
     this.fill = new SpriteHandle('fill', this.node, fillName).anchor(0, 0);
-    this.frame = new NineSlice(this.node, 'ui_bar_frame', w, h);
+    this.frame = new NineSlice(this.node, frame, w, h);
   }
   set(frac: number, fillName = this.fillName): this {
-    const f = Math.max(0, Math.min(1, frac));
+    const f = Math.max(0, Math.min(1, Number.isFinite(frac) ? frac : 0));
     const iw = this.w - 2, ih = this.h - 2;
     this.fill.set(fillName).size(Math.round(iw * f), ih).anchor(0, 0).pos(1, 1).show(f > 0);
     return this;
@@ -63,19 +65,24 @@ export class Hud {
   private hearthIcon: SpriteHandle;
   private hearthBar: Bar;
   private hearthText: BitmapText;
-  private res: Record<'wood' | 'stone' | 'gold', IconValue>;
-  private bumpT: Record<'wood' | 'stone' | 'gold', number> = { wood: 9, stone: 9, gold: 9 };
+  private coals: SpriteHandle[] = [];
+  private blessIcons: SpriteHandle[] = [];
+  private blessText: BitmapText[] = [];
+  private res: Record<HudRes, IconValue>;
+  private resHit: Hit;
+  private bumpT: Record<HudRes, number> = { wood: 9, stone: 9, gold: 9, iron: 9 };
+  private fullT: Record<HudRes, number> = { wood: 0, stone: 0, gold: 0, iron: 0 };
   private arc: SpriteHandle[] = [];
   private sunMoon: SpriteHandle;
   private phaseText: BitmapText;
+  private moon: SpriteHandle;
+  private threat: IconValue;
   private leftText: IconValue;
+  private beaconIcon: SpriteHandle;
   readonly pause: Button;
   readonly hammer: Button;
   readonly horn: Button;
   private hornRing: SpriteHandle;
-  readonly callNight: Button;
-  readonly startNight: Button;
-  readonly omensBtn: Button;
   private portraits: Portrait[] = [];
   private portraitHits: Hit[] = [];
   readonly minimap: Minimap;
@@ -85,29 +92,43 @@ export class Hud {
   private banner: BitmapText;
   private bannerSub: BitmapText;
   private bannerT = 9; private bannerDur = 2.2;
-  private toast: BitmapText;
+  private toastText: BitmapText;
   private toastT = 9;
   private vignette: SpriteHandle[] = [];
   private flies: Fly[] = [];
   private flyFree: SpriteHandle[] = [];
   private riftFlashT = 0;
+  /** bottom of the top-left block (UI px), where the goal strip goes */
+  goalY = 0;
   onPortrait: (squadIndex: number) => void = () => undefined;
-  onOmens: () => void = () => undefined;
 
   constructor(parent: Node, readonly ctx: Ctx) {
     this.node = mkNode('hud', parent);
-    // vignette strips first (drawn under everything else in the HUD)
     for (let i = 0; i < 4; i++) this.vignette.push(new SpriteHandle('vig', this.node).solid(1, 1).color(PAL.R[0], PAL.R[1], PAL.R[2], 0).show(false));
     this.hearthIcon = new SpriteHandle('hearthIcon', this.node, 'icon_fire').anchor(0, 0);
     this.hearthBar = new Bar(this.node, 'ui_bar_fill_red', 58, 8);
     this.hearthText = new BitmapText(this.node, { ax: 0.5, ay: 0.5, color: PAL.w });
+    for (let i = 0; i < 7; i++) this.coals.push(new SpriteHandle('coal', this.node, 'icon_warmth_off').anchor(0, 0));
+    for (let i = 0; i < 4; i++) {
+      this.blessIcons.push(new SpriteHandle('bless', this.node).anchor(0, 0).show(false));
+      this.blessText.push(new BitmapText(this.node, { ax: 1, ay: 0, color: PAL.z, scalable: false }));
+    }
     this.res = {
-      wood: new IconValue(this.node, 'icon_wood'), stone: new IconValue(this.node, 'icon_stone'), gold: new IconValue(this.node, 'icon_gold', PAL.z),
+      wood: new IconValue(this.node, 'icon_wood'), stone: new IconValue(this.node, 'icon_stone'),
+      gold: new IconValue(this.node, 'icon_gold', PAL.z), iron: new IconValue(this.node, 'icon_iron', PAL.v),
     };
+    this.resHit = uiInput.add({
+      x: 0, y: 0, w: 0, h: 0, z: 18,
+      active: () => this.node.activeInHierarchy && !ctx.state().expedition,
+      onUp: (_x, _y, inside) => { if (inside) { ctx.sfx('ui_click'); ctx.open('village', 'storage'); } },
+    });
     for (let i = 0; i < 9; i++) this.arc.push(new SpriteHandle('arc', this.node, 'ui_range_dot').anchor(0.5, 0.5));
     this.sunMoon = new SpriteHandle('sun', this.node, 'icon_sun').anchor(0.5, 0.5);
     this.phaseText = new BitmapText(this.node, { ax: 0.5, ay: 1, color: PAL.w });
+    this.moon = new SpriteHandle('moon', this.node, 'moon_new').anchor(0.5, 0.5);
+    this.threat = new IconValue(this.node, 'icon_threat', PAL.L);
     this.leftText = new IconValue(this.node, 'icon_skull');
+    this.beaconIcon = new SpriteHandle('beacon', this.node, 'beacon_steady').anchor(0.5, 0.5);
     this.pause = new Button(this.node, { icon: 'icon_pause', z: 20 });
     this.pause.onTap = () => { ctx.sfx('ui_click'); ctx.pause(true); };
     this.minimap = new Minimap(this.node, ctx);
@@ -126,20 +147,17 @@ export class Hud {
     this.horn = new Button(this.node, { icon: 'icon_horn', z: 20 });
     this.hornRing = new SpriteHandle('hornRing', this.horn.node).anchor(0.5, 0.5);
     this.horn.onTap = () => { ctx.cmd({ t: 'horn' }); };
-    this.callNight = new Button(this.node, { icon: 'icon_moon', text: tr('hud.callNight'), z: 20 });
-    this.callNight.onTap = () => { ctx.sfx('ui_click'); ctx.cmd({ t: 'callNight' }); };
-    this.startNight = new Button(this.node, { icon: 'icon_moon', text: tr('hud.startNight'), z: 32 });
-    this.startNight.onTap = () => { ctx.sfx('ui_click'); ctx.cmd({ t: 'startNight' }); };
-    this.omensBtn = new Button(this.node, { icon: 'icon_skull', z: 32 });
-    this.omensBtn.onTap = () => { ctx.sfx('ui_click'); this.onOmens(); };
     for (let i = 0; i < 12; i++) this.arrows.push(new SpriteHandle('arrow', this.node, 'ui_arrow_edge').anchor(0.5, 0.5).show(false));
     this.bossName = new BitmapText(this.node, { ax: 0.5, ay: 0, color: PAL.L });
     this.bossBar = new Bar(this.node, 'ui_bar_fill_red', 150, 9);
     this.banner = new BitmapText(this.node, { font: 'font7', ax: 0.5, ay: 0.5, color: PAL.z });
     this.bannerSub = new BitmapText(this.node, { ax: 0.5, ay: 1, color: PAL.w, align: 'center', maxWidth: 200 });
-    this.toast = new BitmapText(this.node, { ax: 0.5, ay: 1, color: PAL.z, align: 'center', maxWidth: 200 });
+    this.toastText = new BitmapText(this.node, { ax: 0.5, ay: 1, color: PAL.z, align: 'center', maxWidth: 200 });
     this.layout();
   }
+
+  /** Height of the bottom bar the HUD must keep clear of (set by GameRoot). */
+  bottomInset = 0;
 
   layout(): void {
     const L = this.ctx.layout;
@@ -147,30 +165,28 @@ export class Hud {
     this.hearthIcon.pos(left, top - 16);
     this.hearthBar.pos(left + 19, top - 12);
     this.hearthText.pos(left + 19 + 29, top - 8);
-    this.res.wood.pos(left, top - 28);
-    this.res.stone.pos(left, top - 45);
-    this.res.gold.pos(left, top - 62);
+    this.coals.forEach((c, i) => c.pos(left + 17 + i * 8, top - 31));
+    this.blessIcons.forEach((b, i) => b.pos(left + i * 19, top - 50));
+    this.blessText.forEach((b, i) => b.pos(left + i * 19 + 18, top - 51));
+    this.res.wood.pos(left, top - 58); this.res.stone.pos(left + 44, top - 58);
+    this.res.gold.pos(left, top - 74); this.res.iron.pos(left + 44, top - 74);
+    Object.assign(this.resHit, { x: left, y: top - 82, w: 88, h: 32 });
+    this.goalY = top - 86;
     this.pause.layout(right - 22, top - 22, 22, 22);
     const mm = Math.round(112 / L.uiS);
     this.minimap.layout(right - mm, top - 28 - mm, mm);
-    const py = Math.round(L.H * 0.66);
+    const py = Math.round(L.H * 0.58);
     this.portraits.forEach((p, i) => p.node.setPosition(left, py - i * 38, 0));
     this.portraitHits.forEach((h, i) => Object.assign(h, { x: left, y: py - i * 38 - 5 }));
     const hb = Math.max(32, Math.round(96 / L.uiS));
-    this.horn.layout(right - hb, bottom, hb, hb);
+    this.horn.layout(right - hb, bottom + this.bottomInset, hb, hb);
     this.hornRing.pos(Math.round(hb / 2), Math.round(hb / 2));
-    this.hammer.layout(right - hb * 2 - 6, bottom, hb, hb);
-    this.callNight.setText(tr('hud.callNight')); this.startNight.setText(tr('hud.startNight'));
-    const cw = Math.max(96, this.callNight.contentWidth());
-    this.callNight.layout(Math.max(left, this.hammer.x - 6 - cw), bottom + 2, cw, 26);
-    const sw = Math.max(96, this.startNight.contentWidth());
-    this.startNight.layout(Math.round((L.W - sw - 30) / 2), bottom + 142, sw, 26);
-    this.omensBtn.layout(Math.round((L.W - sw - 30) / 2) + sw + 4, bottom + 142, 26, 26);
-    this.bossName.pos(Math.round(L.W / 2), top - 88);
-    this.bossBar.pos(Math.round(L.W / 2) - 75, top - 100);
+    this.hammer.layout(right - hb * 2 - 6, bottom + this.bottomInset, hb, hb);
+    this.bossName.pos(Math.round(L.W / 2), top - 98);
+    this.bossBar.pos(Math.round(L.W / 2) - 75, top - 110);
     this.banner.pos(Math.round(L.W / 2), Math.round(L.H * 0.62));
     this.bannerSub.pos(Math.round(L.W / 2), Math.round(L.H * 0.62) - 14);
-    this.toast.pos(Math.round(L.W / 2), top - 70);
+    this.toastText.pos(Math.round(L.W / 2), top - 120);
     const vw = 6;
     this.vignette[0].solid(L.W, vw).pos(0, L.H - vw);
     this.vignette[1].solid(L.W, vw).pos(0, 0);
@@ -182,30 +198,34 @@ export class Hud {
     this.banner.set(text, color); this.bannerSub.set(sub);
     this.bannerT = 0; this.bannerDur = dur;
   }
-  showToast(text: string): void { this.toast.set(text); this.toastT = 0; }
+  showToast(text: string, color: readonly number[] = PAL.z): void { this.toastText.set(text, color); this.toastT = 0; }
   flashRifts(): void { this.riftFlashT = 1.6; }
 
-  /** A resource icon flies from a tile position to its HUD counter, which bumps on arrival. */
-  fly(res: 'wood' | 'stone' | 'gold', tx: number, ty: number): void {
+  /** A resource icon flies from a tile position (or a UI point) to its HUD counter, which bumps on arrival. */
+  fly(res: ResKey, tx: number, ty: number, fromUi = false): void {
     if (this.flies.length > 24) return;
-    const from = this.ctx.tileToUi(tx, ty);
-    const to = this.res[res].node.position;
+    const from = fromUi ? { x: tx, y: ty } : this.ctx.tileToUi(tx, ty);
+    const key = (HUD_RES as string[]).includes(res) ? (res as HudRes) : null;
+    const to = key ? this.res[key].node.position : this.hearthIcon.node.position;
     const h = this.flyFree.pop() ?? new SpriteHandle('fly', this.node);
-    h.set(`icon_${res}`).anchor(0.5, 0.5).show(true).pos(Math.round(from.x), Math.round(from.y));
+    h.set(resIcon(res)).anchor(0.5, 0.5).show(true).pos(Math.round(from.x), Math.round(from.y));
     this.flies.push({ h, t: 0, x0: from.x, y0: from.y, x1: to.x + 8, y1: to.y, res });
   }
 
   onEvent(e: GameEvent): void {
     switch (e.t) {
-      case 'shrine': this.showToast(tr(`shrine.${e.buff}`)); break;
+      case 'buildFail': this.showToast(tr(`build.fail.${e.reason}`), PAL.o); break;
       case 'enrage': this.banner_(tr('banner.enrage'), '', PAL.L, 1.8); break;
-      case 'buildFail': this.showToast(tr(`build.fail.${e.reason}`)); break;
-      case 'hired': this.showToast(tr('cage.freed', { name: tr(`hero.${e.hero}.name`) })); break;
-      case 'poi':
-        if (e.kind === 'root' && e.action === 'destroyed') this.showToast(tr('root.destroyed'));
-        if (e.kind === 'cage' && e.action === 'freed') this.showToast(tr('poi.cage'));
+      case 'hearthLow': this.showToast(tr('hud.hearthLow'), PAL.R); break;
+      case 'storageFull': {
+        if ((HUD_RES as string[]).includes(e.res)) this.fullT[e.res as HudRes] = 2.5;
+        this.showToast(tr('hud.storageFull', { res: tr(`res.${e.res}`) }), PAL.o);
         break;
-      case 'hearthLow': this.showToast(tr('hud.hearthLow')); break;
+      }
+      case 'hearthTier': this.banner_(tr('banner.tier', { n: e.tier }), '', PAL.z, 2.4); break;
+      case 'regionSealed': this.banner_(tr('banner.sealed'), tr(`region.${e.region}`), PAL.z, 3); break;
+      case 'achievement': this.showToast(`${tr('book.achievements')}: ${trOr(`ach.${e.id}.name`, e.id)}`); break;
+      case 'bounty': if (e.done) this.showToast(`${tr('book.bounties')}: ${tr('ui.done')}`); break;
       default: break;
     }
   }
@@ -214,12 +234,27 @@ export class Hud {
     const ctx = this.ctx, L = ctx.layout, t = ctx.time;
     const hearth = s.buildings.find((b) => b.uid === s.hearthUid);
     const hf = hearth && hearth.maxHp > 0 ? hearth.hp / hearth.maxHp : 0;
+    const exp = !!s.expedition;
+    // the Hearth block is the hold's; on an expedition it gives way to the expedition HUD
+    this.hearthIcon.show(!exp); this.hearthBar.show(!exp); this.hearthText.show(!exp);
     this.hearthBar.set(hf);
-    this.hearthText.set(hearth ? `${Math.ceil(hearth.hp)}` : '0');
-    for (const k of ['wood', 'stone', 'gold'] as const) {
+    this.hearthText.set(hearth ? abbrev(Math.ceil(hearth.hp)) : '0');
+    const warmth = Math.max(0, Math.min(7, Math.round(s.warmth ?? 0)));
+    this.coals.forEach((c, i) => c.show(!exp).set(i < warmth ? 'icon_warmth' : 'icon_warmth_off'));
+    const bl = s.blessings ?? [];
+    for (let i = 0; i < this.blessIcons.length; i++) {
+      const b = bl[i];
+      this.blessIcons[i].show(!!b && !exp);
+      this.blessText[i].show(!!b && !exp);
+      if (b) { this.blessIcons[i].set(`boon_${b.id}`); this.blessText[i].set(`${b.nightsLeft}`); }
+    }
+    for (const k of HUD_RES) {
       this.bumpT[k] += dt;
+      this.fullT[k] = Math.max(0, this.fullT[k] - dt);
       const b = hudBump(this.bumpT[k]);
-      this.res[k].set(fmtNum(s.res[k]));
+      const full = this.fullT[k] > 0 || (k !== 'gold' && s.storageCap > 0 && s.res[k] >= s.storageCap);
+      const flash = full && Math.sin(t * 10) > 0;
+      this.res[k].show(!exp).set(abbrev(s.res[k] ?? 0), flash ? PAL.o : k === 'gold' ? PAL.z : k === 'iron' ? PAL.v : PAL.w);
       this.res[k].node.setScale(b, b, 1);
     }
     // phase clock: icon travels along a half-circle arc left → right over the phase
@@ -228,16 +263,21 @@ export class Hud {
     const cx = Math.round(L.W / 2), cy = L.H - L.top - 26, r = 18;
     for (let i = 0; i < this.arc.length; i++) {
       const a = Math.PI * (1 - i / (this.arc.length - 1));
-      this.arc[i].pos(Math.round(cx + Math.cos(a) * r), Math.round(cy + Math.sin(a) * r)).alpha(i / (this.arc.length - 1) <= prog ? 255 : 110);
+      this.arc[i].show(!exp).pos(Math.round(cx + Math.cos(a) * r), Math.round(cy + Math.sin(a) * r)).alpha(i / (this.arc.length - 1) <= prog ? 255 : 110);
     }
     const a = Math.PI * (1 - prog);
-    this.sunMoon.set(night || s.phase === 'dusk' ? 'icon_moon' : 'icon_sun').pos(Math.round(cx + Math.cos(a) * r), Math.round(cy + Math.sin(a) * r));
-    const nightN = s.night;
-    const title = s.endless || nightN > 10 ? tr('hud.nightEndless', { n: nightN }) : tr('hud.night', { n: nightN });
-    this.phaseText.set(s.phase === 'day' || s.phase === 'night' ? title : `${tr(`phase.${s.phase}`)} - ${title}`).pos(cx, cy - 6);
-    if (night) {
-      this.leftText.show(true).set(tr('hud.enemiesLeft', { n: s.enemiesLeft })).pos(cx - Math.round(this.leftText.width / 2), cy - 22);
-    } else this.leftText.show(false);
+    this.sunMoon.show(!exp).set(night || s.phase === 'dusk' ? 'icon_moon' : 'icon_sun').pos(Math.round(cx + Math.cos(a) * r), Math.round(cy + Math.sin(a) * r));
+    this.phaseText.show(!exp).set(s.siege && (night || s.phase === 'dusk') ? tr('hud.siege') : tr('hud.night', { n: s.night }),
+      s.moon === 'blood' ? PAL.R : PAL.w).pos(cx, cy - 6);
+    this.moon.show(!exp).set(`moon_${s.moon}`).pos(cx + r + 12, cy + 4);
+    const capped = Number.isFinite(s.trCap) && s.trCap > 0;
+    this.threat.show(!exp && !night).set(capped ? tr('hud.threat', { x: s.tr, cap: s.trCap }) : tr('hud.threatDeep', { x: s.tr }),
+      capped && s.tr >= s.trCap ? PAL.z : PAL.L);
+    this.threat.pos(cx - Math.round(this.threat.width / 2), cy - 22);
+    if (night && !exp) {
+      this.leftText.show(true).set(tr('hud.enemiesLeft', { n: s.enemiesLeft })).pos(cx - Math.round(this.leftText.width / 2) - 6, cy - 22);
+      this.beaconIcon.show(true).set(`beacon_${s.beacon}`).pos(cx + Math.round(this.leftText.width / 2) + 6, cy - 22);
+    } else { this.leftText.show(false); this.beaconIcon.show(false); }
 
     // portraits
     for (let i = 0; i < this.portraits.length; i++) {
@@ -252,18 +292,14 @@ export class Hud {
         p.cd.set(`portrait_${h.id}`, true).pos(2, 2).color(PAL.k[0], PAL.k[1], PAL.k[2], 170).show(true)
           .fill(Sprite.FillType.RADIAL, 0.25, cdf, new Vec2(0.5, 0.5));
       } else p.cd.show(false);
-      p.lvl.set(`${h.level}`).pos(27, 1);
+      p.lvl.set(`${s.roster?.[h.id]?.level ?? ''}`).pos(27, 1);
       p.frame.setFrame(h.leader ? 'ui_panel_parchment' : 'ui_panel_stone');
     }
 
-    // bottom buttons by phase / mode
-    const playing = s.phase === 'day' || s.phase === 'night';
-    this.hammer.show(playing && !s.buildMode);
-    this.horn.show(playing && !s.buildMode);
-    this.callNight.show(s.phase === 'day' && !s.buildMode);
-    if (s.phase === 'day') this.callNight.setText(tr('hud.callNight'));
-    this.startNight.show(s.phase === 'dusk');
-    this.omensBtn.show(s.phase === 'dusk');
+    // night / expedition: Hammer + Horn bottom-right (by day the bottom bar carries Build and the horn sits above it)
+    const playing = s.phase === 'peace' || night;
+    this.hammer.show(night && !s.buildMode && !exp);
+    this.horn.show((playing || exp) && !s.buildMode);
     const charge = Math.max(0, Math.min(1, s.hornCharge / BALANCE.horn.charge));
     this.horn.setEnabled(charge >= 1 && s.hornT <= 0);
     if (charge < 1) {
@@ -274,7 +310,7 @@ export class Hud {
       if (s.hornT > 0) this.hornRing.set('icon_horn', true).color(PAL.y[0], PAL.y[1], PAL.y[2], Math.round(120 + 100 * Math.sin(t * 10)));
     }
 
-    // boss bar
+    // boss bar (bosses + Blood-Moon champion)
     if (s.boss) {
       this.bossName.show(true).set(tr(`enemy.${s.boss.id}.name`));
       this.bossBar.show(true).set(s.boss.maxHp > 0 ? s.boss.hp / s.boss.maxHp : 0);
@@ -288,21 +324,20 @@ export class Hud {
     const bs = this.bannerT < 0.25 ? 2 - this.bannerT / 0.25 : 1;
     this.banner.node.setScale(bs * 2, bs * 2, 1);
     this.toastT += dt;
-    this.toast.show(this.toastT < 2.5).alpha(255 * Math.min(1, (2.5 - this.toastT) / 0.4));
+    this.toastText.show(this.toastT < 2.5).alpha(255 * Math.min(1, (2.5 - this.toastT) / 0.4));
 
     // low-Hearth vignette (+ rift flash at night start in purple)
     this.riftFlashT = Math.max(0, this.riftFlashT - dt);
-    const va = lowHearthAlpha(hf, t);
-    // night start: the screen edges on the side of each active rift flash purple (SPEC §8)
+    const va = exp ? 0 : lowHearthAlpha(hf, t);
     const riftSides = [false, false, false, false]; // top, bottom, left, right
     if (this.riftFlashT > 0) {
       const inset = { x: 0, y: 0, w: L.W, h: L.H };
       for (const p of s.pois) {
         if (p.kind !== 'rift' || !p.active) continue;
-        const a = edgeArrow(this.ctx.tileToUi(p.x + 0.5, p.y + 0.5), inset);
-        if (a.onScreen) continue;
-        if (a.y >= L.H - 1) riftSides[0] = true; else if (a.y <= 1) riftSides[1] = true;
-        if (a.x <= 1) riftSides[2] = true; else if (a.x >= L.W - 1) riftSides[3] = true;
+        const ar = edgeArrow(this.ctx.tileToUi(p.x + 0.5, p.y + 0.5), inset);
+        if (ar.onScreen) continue;
+        if (ar.y >= L.H - 1) riftSides[0] = true; else if (ar.y <= 1) riftSides[1] = true;
+        if (ar.x <= 1) riftSides[2] = true; else if (ar.x >= L.W - 1) riftSides[3] = true;
       }
     }
     const pulse = Math.round(110 + 90 * Math.sin(this.riftFlashT * 18));
@@ -322,7 +357,7 @@ export class Hud {
       const k = f.t / FLY_SEC;
       if (k >= 1) {
         f.h.show(false); this.flyFree.push(f.h); this.flies.splice(i, 1);
-        this.bumpT[f.res] = 0;
+        if ((HUD_RES as string[]).includes(f.res)) this.bumpT[f.res as HudRes] = 0;
         continue;
       }
       const p = flyPath(k, f.x0, f.y0, f.x1, f.y1);
@@ -332,7 +367,7 @@ export class Hud {
 
   private updateArrows(s: GameState, t: number): void {
     const L = this.ctx.layout;
-    const inset = { x: L.left + 10, y: L.bottom + 10, w: L.W - L.left - L.right - 20, h: L.H - L.top - L.bottom - 20 };
+    const inset = { x: L.left + 10, y: L.bottom + 10 + this.bottomInset, w: L.W - L.left - L.right - 20, h: L.H - L.top - L.bottom - 20 - this.bottomInset };
     let i = 0;
     const put = (tx: number, ty: number, tint: readonly number[], pulse: boolean) => {
       if (i >= this.arrows.length) return;
@@ -344,16 +379,18 @@ export class Hud {
       h.show(true).pos(Math.round(a.x - Math.cos((a.angle * Math.PI) / 180) * bob), Math.round(a.y - Math.sin((a.angle * Math.PI) / 180) * bob))
         .angle(Math.round(a.angle)).color(tint[0], tint[1], tint[2], 255);
     };
-    const hearth = s.buildings.find((b) => b.uid === s.hearthUid);
-    if (hearth) put(hearth.x + hearth.w / 2, hearth.y + hearth.h / 2, PAL.z, false);
-    if (s.phase === 'night' || s.phase === 'dusk' || this.riftFlashT > 0) {
-      for (const p of s.pois) if (p.kind === 'rift' && p.active) put(p.x + 0.5, p.y + 0.5, PAL.L, true);
-    }
-    const now = this.ctx.time;
-    for (const [uid, at] of this.ctx.ents.attacked) {
-      if (now - at > 2.5) { this.ctx.ents.attacked.delete(uid); continue; }
-      const b = s.buildings.find((q) => q.uid === uid);
-      if (b) put(b.x + b.w / 2, b.y + b.h / 2, PAL.R, true);
+    if (!s.expedition) {
+      const hearth = s.buildings.find((b) => b.uid === s.hearthUid);
+      if (hearth) put(hearth.x + hearth.w / 2, hearth.y + hearth.h / 2, PAL.z, false);
+      if (s.phase === 'night' || s.phase === 'dusk' || this.riftFlashT > 0) {
+        for (const p of s.pois) if (p.kind === 'rift' && p.active) put(p.x + 0.5, p.y + 0.5, PAL.L, true);
+      }
+      const now = this.ctx.time;
+      for (const [uid, at] of this.ctx.ents.attacked) {
+        if (now - at > 2.5) { this.ctx.ents.attacked.delete(uid); continue; }
+        const b = s.buildings.find((q) => q.uid === uid);
+        if (b) put(b.x + b.w / 2, b.y + b.h / 2, PAL.R, true);
+      }
     }
     for (; i < this.arrows.length; i++) this.arrows[i].show(false);
   }

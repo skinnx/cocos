@@ -25,29 +25,65 @@ export function defaultAnchor(kind, w, h) {
 }
 
 // Shelf packer. items: [{ id, w, h }] (slot sizes). Returns { W, H, rects: Map(id → {x,y}) } or null.
+const bySize = (a, b) => b.h - a.h || b.w - a.w || (a.id < b.id ? -1 : 1);
 export function packShelves(items, width, maxH = MAX_SIZE, pad = PAD) {
-  const order = [...items].sort((a, b) => b.h - a.h || b.w - a.w || (a.id < b.id ? -1 : 1));
-  const rects = new Map(); let x = pad, y = pad, shelfH = 0, usedW = 0;
+  const order = [...items].sort(bySize);
+  const rects = new Map(); let x = pad, y = pad, shelfH = 0;
   for (const it of order) {
     if (it.w + 2 * pad > width) return null;
     if (x + it.w + pad > width) { y += shelfH + pad; x = pad; shelfH = 0; }
-    rects.set(it.id, { x, y }); x += it.w + pad; shelfH = Math.max(shelfH, it.h); usedW = Math.max(usedW, x);
+    if (y + it.h + pad > maxH) return null;
+    rects.set(it.id, { x, y }); x += it.w + pad; shelfH = Math.max(shelfH, it.h);
   }
   const H = y + shelfH + pad;
   return H <= maxH ? { W: width, H, rects } : null;
 }
-export function pack(items) {
-  let best = null;
-  for (const w of [256, 384, 512, 640, 768, 1024, 1280, 1536, 2048]) {
-    const r = packShelves(items, w);
+// Skyline bottom-left packer (tallest first). Each item reserves (w+pad)×(h+pad) starting at (pad,pad), so
+// neighbours and the texture border are always ≥ pad px apart. Much tighter than shelves for mixed heights.
+export function packSkyline(items, width, maxH = MAX_SIZE, pad = PAD) {
+  const order = [...items].sort(bySize);
+  let sky = [{ x: pad, y: pad, w: width - pad }]; // segments cover [pad, width)
+  const rects = new Map(); let H = pad;
+  for (const it of order) {
+    const W = it.w + pad, Hh = it.h + pad;
+    if (it.w + 2 * pad > width) return null;
+    let best = null;
+    for (let i = 0; i < sky.length; i++) {
+      const x = sky[i].x; if (x + W > width) break;
+      let y = 0, j = i, covered = 0;
+      while (covered < W) { y = Math.max(y, sky[j].y); covered = sky[j].x + sky[j].w - x; j++; }
+      if (!best || y + Hh < best.y + best.h || (y + Hh === best.y + best.h && x < best.x)) best = { i, x, y, h: Hh };
+    }
+    if (!best || best.y + Hh > maxH) return null;
+    rects.set(it.id, { x: best.x, y: best.y }); H = Math.max(H, best.y + Hh);
+    // splice the new segment in, trimming the segments it covers
+    const seg = { x: best.x, y: best.y + Hh, w: W }, end = best.x + W, next = [];
+    for (const s of sky) {
+      const sEnd = s.x + s.w;
+      if (sEnd <= best.x || s.x >= end) { next.push(s); continue; }
+      if (s.x < best.x) next.push({ x: s.x, y: s.y, w: best.x - s.x });
+      if (sEnd > end) next.push({ x: end, y: s.y, w: sEnd - end });
+    }
+    next.push(seg);
+    next.sort((a, b) => a.x - b.x);
+    sky = [];
+    for (const s of next) { const l = sky[sky.length - 1]; if (l && l.y === s.y && l.x + l.w === s.x) l.w += s.w; else sky.push({ ...s }); }
+  }
+  return { W: width, H, rects };
+}
+// Try both packers over a range of widths; among layouts within 5% of the smallest area, keep the squarest.
+export function pack(items, maxSize = MAX_SIZE) {
+  const cands = [];
+  for (let w = 256; w <= maxSize; w += 128) for (const fn of [packSkyline, packShelves]) {
+    const r = fn(items, w, maxSize);
     if (!r) continue;
     r.H = Math.ceil(r.H / 4) * 4;
-    if (r.H > MAX_SIZE) continue;
-    // prefer smallest area, then most square
-    const score = r.W * r.H + Math.abs(r.W - r.H);
-    if (!best || score < best.score) best = { ...r, score };
+    if (r.H <= maxSize) cands.push({ ...r, algo: fn.name });
   }
-  return best;
+  if (!cands.length) return null;
+  const minArea = Math.min(...cands.map((c) => c.W * c.H));
+  const ok = cands.filter((c) => c.W * c.H <= minArea * 1.05);
+  return ok.sort((a, b) => Math.max(a.W, a.H) - Math.max(b.W, b.H) || a.W * a.H - b.W * b.H)[0];
 }
 
 function checkPx(name, px) {
@@ -105,13 +141,24 @@ export function contactSheet(path, entries, { scale = 4, maxW = 360, gap = 3, bg
   writePNG(path, W * scale, H * scale, out);
 }
 
+function sheetHeight(entries, maxW, gap = 3) {
+  let x = gap, y = gap, rowH = 0;
+  for (const e of entries) { if (x + e.px.w + gap > maxW && x > gap) { x = gap; y += rowH + gap; rowH = 0; } x += e.px.w + gap; rowH = Math.max(rowH, e.px.h); }
+  return y + rowH + gap;
+}
+
 export async function buildAtlas(opts = {}) {
   const { allowMissing = false, outDir = join(ROOT, 'assets/resources/art'), docsDir = join(ROOT, 'docs/art'), groups = GROUPS, log = () => {} } = opts;
   const errors = [], warnings = [], missing = [], absentGroups = [], byGroup = {};
+  // A name listed more than once (e.g. a v2 entry re-listing a v1 name) belongs to its LAST owner: the newer
+  // module's sprite supersedes the older one, which is skipped with a warning instead of failing the build.
   const manifestBy = new Map(MANIFEST.map((m) => [m.name, m]));
+  const ownersOf = new Map();
+  for (const m of MANIFEST) ownersOf.set(m.name, [...(ownersOf.get(m.name) ?? []), m.owner]);
+  for (const [n, o] of ownersOf) if (o.length > 1) warnings.push(`manifest lists "${n}" ${o.length}× (owners ${o.join(', ')}); using the "${manifestBy.get(n).owner}" sprite`);
   const all = []; const seen = new Map();
   for (const g of groups) {
-    const res = await loadGroup(g); const expected = MANIFEST.filter((m) => m.owner === g).map((m) => m.name);
+    const res = await loadGroup(g); const expected = [...manifestBy.values()].filter((m) => m.owner === g).map((m) => m.name);
     if (res.absent || res.error) {
       if (res.absent) absentGroups.push(g);
       if (res.error) (allowMissing ? warnings : errors).push(res.error);
@@ -126,7 +173,10 @@ export async function buildAtlas(opts = {}) {
       if (typeof name !== 'string') { errors.push(`${g}: entry without a name`); continue; }
       if (!NAMES.has(name)) { errors.push(`${g}: "${name}" is not in manifest.mjs`); continue; }
       const m = manifestBy.get(name);
-      if (m.owner !== g) { errors.push(`${g}: "${name}" belongs to group "${m.owner}"`); continue; }
+      if (m.owner !== g) {
+        if (ownersOf.get(name).includes(g)) continue; // superseded by a later owner (warned above)
+        errors.push(`${g}: "${name}" belongs to group "${m.owner}"`); continue;
+      }
       if (seen.has(name)) { errors.push(`${g}: duplicate sprite name "${name}"`); continue; }
       const pxErr = checkPx(name, e.px); if (pxErr.length) { errors.push(...pxErr); continue; }
       // the module's declared kind wins (lint + default anchor); differences from the manifest are reported
@@ -193,16 +243,18 @@ export async function buildAtlas(opts = {}) {
   writeFileSync(join(outDir, 'font.json'), JSON.stringify(font, null, 1));
   const contact = [];
   for (const g of groups) {
-    const list = MANIFEST.filter((m) => m.owner === g && seen.has(m.name)).map((m) => seen.get(m.name));
+    const list = [...new Set(MANIFEST.map((m) => m.name))].map((n) => seen.get(n)).filter((e) => e && e.group === g);
     if (!list.length) continue;
-    const maxW = Math.max(...list.map((e) => e.px.w));
-    const scale = g === 'ui' ? 4 : list.length > 120 ? 4 : 5;
+    // big groups get a wider sheet and a smaller scale so the PNG stays reviewable (≲ 2400 px tall)
+    const maxW = Math.max(Math.max(...list.map((e) => e.px.w)) + 6, g === 'ui' ? 340 : list.length > 200 ? 480 : 300);
+    const rowsH = sheetHeight(list, maxW);
+    const scale = g === 'ui' || g === 'ui2' ? 4 : [5, 4, 3, 2].find((k) => rowsH * k <= 2400) ?? 2;
     const file = join(docsDir, `contact-${g}.png`);
-    contactSheet(file, list, { scale, maxW: Math.max(maxW + 6, g === 'ui' ? 340 : 300) });
+    contactSheet(file, list, { scale, maxW });
     contact.push(file);
   }
   const used = items.reduce((s, it) => s + it.w * it.h, 0);
-  log(`atlas ${W}×${H}, ${all.length} sprites (${items.length} packed), fill ${((used / (W * H)) * 100).toFixed(1)}%`);
+  log(`atlas ${W}×${H}, ${all.length} sprites (${items.length} packed, ${packed.algo ?? 'empty'}), fill ${((used / (W * H)) * 100).toFixed(1)}%`);
   return { ok: errors.length === 0, errors, warnings, missing, byGroup, size: [W, H], frames: sorted, count: all.length, packed: items.length, contact };
 }
 
