@@ -1,28 +1,30 @@
 # Emberhold
 
-Game mobile màn dọc: tiểu đội hero pixel-art + xây pháo đài tự do trên lưới + thủ thành theo đêm, roguelite. Engine: COCOS 4 + TypeScript.
+Mobile portrait game: a squad of pixel-art heroes explores by day, builds a free-form fort on a grid, and defends the Hearth when the Gloom comes at night. Roguelite, 10 nights per run. Engine: COCOS 4 + TypeScript. Full design: [`SPEC.md`](SPEC.md).
 
-Repo hiện chứa **đặc tả và bộ khởi tạo art**, chưa có mã game.
+![Night defense](docs/shots/night-defense.png)
 
-| File | Nội dung |
-|---|---|
-| [`SPEC.md`](SPEC.md) | Đặc tả đầy đủ: gameplay, game loop, số liệu, art bible, kiến trúc, milestones, Definition of Done |
-| [`PROMPT.md`](PROMPT.md) | Một prompt + một goal để agent dựng game từ SPEC, kèm việc cần chuẩn bị |
-| [`tools/art/pixel.mjs`](tools/art/pixel.mjs) | Bộ công cụ pixel-art không phụ thuộc: canvas chỉ mục, palette 32 màu, tô bóng, outline, art lint, xuất PNG |
-| [`tools/art/anchors.mjs`](tools/art/anchors.mjs) | 11 sprite mẫu định mức chất lượng tối thiểu |
-| [`docs/art/style-anchor.png`](docs/art/style-anchor.png) | Ảnh render của các sprite mẫu |
+## Status
+- Done: deterministic core simulation, all content in the SPEC (17 buildings, 6 heroes, 7 enemies + 2 bosses, 24 boons, POIs, meta progression), 591 generated sprites, generated audio, Cocos 4 view layer, web preview, tests, bot balance gates, e2e.
+- **Blocked:** the COCOS 4 CLI could not be installed in the environment this was built in, so there is no Cocos scene/build yet and the Cocos layer has never run in the real engine. Details and the unblock steps: [`docs/VERIFY.md`](docs/VERIFY.md).
 
-![Style anchor](docs/art/style-anchor.png)
-
-## Chạy thử pipeline art
-
+## Run
 ```bash
-node tools/art/anchors.mjs   # Node >= 18, không cần npm install
+npm install
+npm run preview                    # web preview at http://127.0.0.1:4177/  (?debug=1 for window.__EH)
+npm run verify -- --allow-blocked  # art, audio, typecheck, tests, balance, preview bundle, e2e
 ```
+Individual steps: `npm run art`, `npm run audio`, `npm run typecheck`, `npm test`, `npm run sim:balance`, `npm run e2e`.
 
-Lệnh render lại `docs/art/style-anchor.png` và chạy art lint.
-
-## Trạng thái kiểm chứng
-
-- Pipeline art: đã chạy, ảnh đã được xem và chỉnh.
-- Toolchain COCOS 4 (`cocos-cli` 0.2.0-beta.2, engine 4.0.0-beta.2): các lệnh và hành vi ghi trong SPEC §13.1 lấy từ việc đọc mã nguồn `cocos/cocos-cli`, **chưa được chạy thử**. Mốc M0 của SPEC yêu cầu agent tự kiểm chứng lại trước khi làm tiếp.
+## Layout
+| Path | Contents |
+|---|---|
+| `assets/scripts/core/` | Engine-free deterministic simulation (`api.ts` is the contract), data tables, bots |
+| `assets/scripts/game/` | COCOS 4 view layer (render, UI, input, audio, saves); `logic/` is engine-free and tested |
+| `assets/resources/` | Generated atlas (`art/`) and audio (`audio/`) |
+| `tools/art/` | Pixel-art toolkit, sprite generators, manifest, atlas builder |
+| `tools/audio/` | sfxr-style synth, chiptune tracker, verifier |
+| `tools/preview/` | Canvas2D web preview of the same core + atlas (verification tool, not the shipping client) |
+| `tools/verify/` | `verify.mjs` pipeline, Playwright e2e |
+| `tests/` | core, balance, art, game |
+| `docs/` | `VERIFY.md`, `DECISIONS.md`, `CONTRACT.md`, `shots/`, `art/` |

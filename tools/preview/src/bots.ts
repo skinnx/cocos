@@ -16,7 +16,10 @@ export const autoplayBot = AutoplayBot;
 
 function clearNight(g: Game) {
   const w = worldOf(g), s = w.s;
-  s.enemies = []; w.emap.clear(); s.projectiles = []; s.zones = []; s.boss = null;
+  // remove wave enemies only: POI guards stay, otherwise their camps would count as "cleared"
+  s.enemies = s.enemies.filter((e) => (e as unknown as { guard: number }).guard > 0);
+  w.emap.clear(); for (const e of s.enemies) w.emap.set(e.uid, e as never);
+  s.projectiles = []; s.zones = []; s.boss = null;
   s.allies = s.allies.filter((a) => a.id !== 'militia');
   w.r.spawn = []; w.r.spawnIdx = 0; s.enemiesLeft = 0;
 }
